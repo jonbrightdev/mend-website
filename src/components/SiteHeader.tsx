@@ -1,12 +1,29 @@
 import Link from "next/link";
 import { BrandMark } from "./BrandMark";
+import { SignOutButton } from "./SignOutButton";
 import { site } from "@/lib/site";
 
-export type MarketingPage = "home" | "privacy" | "support";
+export type NavPage =
+  | "home"
+  | "privacy"
+  | "support"
+  | "login"
+  | "signup"
+  | "dashboard";
+
+type Account = { name: string; email: string };
 
 // Public site header. `current` drives aria-current on the active nav item so
-// the component stays a server component (no usePathname, no client JS).
-export function SiteHeader({ current }: { current: MarketingPage }) {
+// the component stays a server component (no usePathname, no client JS). When
+// `account` is provided, the trailing "Log in" link becomes the signed-in name
+// plus a Sign out control.
+export function SiteHeader({
+  current,
+  account,
+}: {
+  current: NavPage;
+  account?: Account;
+}) {
   return (
     <header className="site-header">
       <div className="wrap site-header__inner">
@@ -33,7 +50,27 @@ export function SiteHeader({ current }: { current: MarketingPage }) {
             Support
           </Link>
           <a href={site.githubUrl}>GitHub</a>
-          <Link href="/login">Log in</Link>
+          {account ? (
+            <>
+              <span
+                style={{
+                  padding: "0 .35rem",
+                  color: "var(--muted)",
+                  fontWeight: 550,
+                }}
+              >
+                {account.name}
+              </span>
+              <SignOutButton />
+            </>
+          ) : (
+            <Link
+              href="/login"
+              aria-current={current === "login" ? "page" : undefined}
+            >
+              Log in
+            </Link>
+          )}
         </nav>
       </div>
     </header>

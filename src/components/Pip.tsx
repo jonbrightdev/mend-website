@@ -8,12 +8,16 @@ export function Pip({
   descId,
   title,
   desc,
+  variant = "full",
 }: {
   className?: string;
   titleId: string;
   descId: string;
   title: string;
   desc: string;
+  // "full" includes the clipboard and arms; "face" is just the head (used on
+  // the signup pitch, where Pip appears small beside a quote).
+  variant?: "full" | "face";
 }) {
   return (
     <svg
@@ -61,22 +65,26 @@ export function Pip({
         <circle cx="160" cy="121" r="2.4" />
       </g>
       <path d="M112 158 q 18 18 36 0" fill="none" stroke="#1d1a14" strokeWidth="4.5" strokeLinecap="round" />
-      <path d="M52 178 q -16 16 -6 34" fill="none" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" />
-      <g transform="rotate(9 192 168)">
-        <rect x="152" y="116" width="80" height="104" rx="11" fill="#ffffff" stroke="#c4502c" strokeWidth="5" />
-        <rect x="178" y="108" width="28" height="16" rx="5" fill="#f8f1e3" stroke="#c4502c" strokeWidth="5" />
-        <g strokeLinecap="round" strokeLinejoin="round" fill="none">
-          <path d="M163 146 l 6 6 l 11 -13" stroke="#c4502c" strokeWidth="4" />
-          <path d="M163 172 l 6 6 l 11 -13" stroke="#c4502c" strokeWidth="4" />
-          <path d="M163 198 l 6 6 l 11 -13" stroke="#c4502c" strokeWidth="4" />
-        </g>
-        <g stroke="#d6cdb6" strokeWidth="5" strokeLinecap="round">
-          <path d="M188 148 L 218 148" />
-          <path d="M188 174 L 218 174" />
-          <path d="M188 200 L 214 200" />
-        </g>
-      </g>
-      <path d="M196 192 q 18 8 22 -6" fill="none" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" />
+      {variant === "full" && (
+        <>
+          <path d="M52 178 q -16 16 -6 34" fill="none" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" />
+          <g transform="rotate(9 192 168)">
+            <rect x="152" y="116" width="80" height="104" rx="11" fill="#ffffff" stroke="#c4502c" strokeWidth="5" />
+            <rect x="178" y="108" width="28" height="16" rx="5" fill="#f8f1e3" stroke="#c4502c" strokeWidth="5" />
+            <g strokeLinecap="round" strokeLinejoin="round" fill="none">
+              <path d="M163 146 l 6 6 l 11 -13" stroke="#c4502c" strokeWidth="4" />
+              <path d="M163 172 l 6 6 l 11 -13" stroke="#c4502c" strokeWidth="4" />
+              <path d="M163 198 l 6 6 l 11 -13" stroke="#c4502c" strokeWidth="4" />
+            </g>
+            <g stroke="#d6cdb6" strokeWidth="5" strokeLinecap="round">
+              <path d="M188 148 L 218 148" />
+              <path d="M188 174 L 218 174" />
+              <path d="M188 200 L 214 200" />
+            </g>
+          </g>
+          <path d="M196 192 q 18 8 22 -6" fill="none" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" />
+        </>
+      )}
     </svg>
   );
 }

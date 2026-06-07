@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
       { source: "/index.html", destination: "/", permanent: true },
       { source: "/privacy.html", destination: "/privacy", permanent: true },
       { source: "/support.html", destination: "/support", permanent: true },
+      { source: "/login.html", destination: "/login", permanent: true },
+      { source: "/signup.html", destination: "/signup", permanent: true },
+      { source: "/dashboard.html", destination: "/dashboard", permanent: true },
     ];
   },
 };
