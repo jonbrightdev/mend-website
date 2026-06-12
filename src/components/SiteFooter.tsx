@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { BrandMark } from "./BrandMark";
 import { site } from "@/lib/site";
 
@@ -17,8 +17,8 @@ export function SiteFooter() {
         </div>
         <nav className="footer-links" aria-label="Footer">
           <a href={site.githubUrl}>GitHub</a>
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/support">Support</Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/support">Support</Link>
         </nav>
       </div>
       <div className="wrap site-footer__fine">

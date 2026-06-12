@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 import { authFeatures } from "@/lib/auth-features";
 
@@ -216,7 +214,7 @@ export function SignupForm() {
       )}
 
       <p className="auth-foot">
-        Already have an account? <Link href="/login">Log in</Link>
+        Already have an account? <Link to="/login">Log in</Link>
       </p>
     </div>
   );

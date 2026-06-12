@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { authClient } from "@/lib/auth-client";
 import { authFeatures } from "@/lib/auth-features";
 
@@ -201,7 +199,7 @@ export function LoginForm() {
       )}
 
       <p className="auth-foot">
-        New to Mend? <Link href="/signup">Create an account</Link>
+        New to Mend? <Link to="/signup">Create an account</Link>
       </p>
     </div>
   );

@@ -1,9 +1,18 @@
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  integer,
+  jsonb,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import type { Impact, ViolationNode } from "@/lib/dashboard-data";
 
 // Better Auth core schema (email+password, sessions, OAuth accounts, and
 // verification tokens for magic links / email verification). Column names match
 // Better Auth's model fields so the Drizzle adapter maps them without overrides.
-// Application tables (audits, violations) arrive with the ingest endpoint.
+// Application tables (audit, violation) hold ingested extension runs.
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -53,4 +62,43 @@ export const verification = pgTable("verification", {
   expiresAt: timestamp("expiresAt").notNull(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
+});
+
+// One row per audit run. A page's history is every run with the same
+// (userId, url); the dashboard shows the latest run per URL and computes the
+// trend from the older ones. The unique index makes ingest idempotent — the
+// extension can safely re-send a run.
+export const audit = pgTable(
+  "audit",
+  {
+    id: text("id").primaryKey(),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    pageTitle: text("pageTitle").notNull(),
+    scannedAt: timestamp("scannedAt").notNull(),
+    durationMs: integer("durationMs"),
+    totalChecks: integer("totalChecks"),
+    partial: boolean("partial").notNull().default(false),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("audit_user_url_scanned").on(t.userId, t.url, t.scannedAt)],
+);
+
+// Issues grouped by rule within a run, mirroring the portal's Violation shape.
+// nodes holds the affected elements ({ target, html, failureSummary }); tags
+// holds the extension's category plus WCAG criteria numbers.
+export const violation = pgTable("violation", {
+  id: text("id").primaryKey(),
+  auditId: text("auditId")
+    .notNull()
+    .references(() => audit.id, { onDelete: "cascade" }),
+  ruleId: text("ruleId").notNull(),
+  impact: text("impact").$type<Impact>().notNull(),
+  help: text("help").notNull(),
+  helpUrl: text("helpUrl"),
+  description: text("description").notNull(),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  nodes: jsonb("nodes").$type<ViolationNode[]>().notNull(),
 });

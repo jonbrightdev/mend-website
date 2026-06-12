@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@tanstack/react-router";
 import { BrandMark } from "./BrandMark";
 import { SignOutButton } from "./SignOutButton";
 import { site } from "@/lib/site";
@@ -27,24 +27,24 @@ export function SiteHeader({
   return (
     <header className="site-header">
       <div className="wrap site-header__inner">
-        <Link className="brand" href="/" aria-label="Mend — home">
+        <Link className="brand" to="/" aria-label="Mend — home">
           <span className="brand__mark" aria-hidden="true">
             <BrandMark size={34} />
           </span>
           <span>Mend</span>
         </Link>
         <nav className="site-nav" aria-label="Primary">
-          <Link href="/" aria-current={current === "home" ? "page" : undefined}>
+          <Link to="/" aria-current={current === "home" ? "page" : undefined}>
             Home
           </Link>
           <Link
-            href="/privacy"
+            to="/privacy"
             aria-current={current === "privacy" ? "page" : undefined}
           >
             Privacy
           </Link>
           <Link
-            href="/support"
+            to="/support"
             aria-current={current === "support" ? "page" : undefined}
           >
             Support
@@ -65,7 +65,7 @@ export function SiteHeader({
             </>
           ) : (
             <Link
-              href="/login"
+              to="/login"
               aria-current={current === "login" ? "page" : undefined}
             >
               Log in

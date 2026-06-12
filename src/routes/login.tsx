@@ -1,14 +1,22 @@
-import type { Metadata } from "next";
+import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { LoginForm } from "@/components/auth/LoginForm";
 
-export const metadata: Metadata = {
-  title: "Log in",
-  description:
-    "Log in to save and aggregate your accessibility audits across pages and over time. The Mend extension works without an account — signing in is optional.",
-};
+export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Log in — Mend" },
+      {
+        name: "description",
+        content:
+          "Log in to save and aggregate your accessibility audits across pages and over time. The Mend extension works without an account — signing in is optional.",
+      },
+    ],
+  }),
+  component: LoginPage,
+});
 
-export default function LoginPage() {
+function LoginPage() {
   return (
     <MarketingShell current="login">
       <section className="section auth" aria-labelledby="auth-h">

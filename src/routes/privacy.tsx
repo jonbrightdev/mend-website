@@ -1,14 +1,22 @@
-import type { Metadata } from "next";
+import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { site } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description:
-    "What Mend does and does not do with your information. Short version: nothing leaves your device.",
-};
+export const Route = createFileRoute("/privacy")({
+  head: () => ({
+    meta: [
+      { title: "Privacy Policy — Mend" },
+      {
+        name: "description",
+        content:
+          "What Mend does and does not do with your information. Short version: nothing leaves your device.",
+      },
+    ],
+  }),
+  component: PrivacyPage,
+});
 
-export default function PrivacyPage() {
+function PrivacyPage() {
   return (
     <MarketingShell current="privacy">
       <div className="wrap page-head">

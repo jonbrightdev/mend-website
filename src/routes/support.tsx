@@ -1,15 +1,23 @@
-import type { Metadata } from "next";
+import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { site } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Support",
-  description:
-    "Get help with Mend. Report bugs and request features on GitHub Issues, or read the FAQ.",
-};
+export const Route = createFileRoute("/support")({
+  head: () => ({
+    meta: [
+      { title: "Support — Mend" },
+      {
+        name: "description",
+        content:
+          "Get help with Mend. Report bugs and request features on GitHub Issues, or read the FAQ.",
+      },
+    ],
+  }),
+  component: SupportPage,
+});
 
-export default function SupportPage() {
+function SupportPage() {
   return (
     <MarketingShell current="support">
       <div className="wrap page-head">

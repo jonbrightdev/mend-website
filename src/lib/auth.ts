@@ -10,7 +10,7 @@ import * as schema from "@/db/schema";
 const googleEnabled = Boolean(
   process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
 );
-const magicLinkEnabled = process.env.NEXT_PUBLIC_AUTH_MAGIC_LINK === "true";
+const magicLinkEnabled = import.meta.env.VITE_AUTH_MAGIC_LINK === "true";
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,

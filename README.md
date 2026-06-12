@@ -15,7 +15,24 @@ Mend is a free, open-source Chrome extension that audits the page you're viewing
 
 ## Site
 
-This repo is the static marketing site: home, [privacy policy](privacy.html), and [support](support.html).
+This repo is the Mend website and portal: marketing pages (home, privacy, support) plus an optional account area where signed-in users can save audits and track violations across pages and runs.
+
+Built with [TanStack Start](https://tanstack.com/start) (Vite + TanStack Router), [Better Auth](https://better-auth.com), and [Drizzle ORM](https://orm.drizzle.team) over Postgres.
+
+### Run it locally
+
+No external services needed — without a `DATABASE_URL`, the app uses [PGlite](https://pglite.dev) (embedded Postgres persisted to `./.data/pglite`).
+
+```bash
+pnpm install
+cp .env.example .env   # set BETTER_AUTH_SECRET (openssl rand -base64 32)
+pnpm db:push           # create tables (once)
+pnpm dev               # http://localhost:3000
+```
+
+To use a real Postgres server instead, set `DATABASE_URL` in `.env` and run `pnpm db:push` again.
+
+Production: `pnpm build`, then `node .output/server/index.mjs`.
 
 Extension source: [github.com/jpreecedev/mend-a11y](https://github.com/jpreecedev/mend-a11y)
 

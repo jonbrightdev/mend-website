@@ -82,7 +82,6 @@ export function Pip({
               <path d="M188 200 L 214 200" />
             </g>
           </g>
-          <path d="M196 192 q 18 8 22 -6" fill="none" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" />
         </>
       )}
     </svg>

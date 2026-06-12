@@ -1,15 +1,23 @@
-import type { Metadata } from "next";
+import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { SignupForm } from "@/components/auth/SignupForm";
 
-export const metadata: Metadata = {
-  title: "Create an account",
-  description:
-    "Create a free Mend account to save and aggregate your accessibility audits. The extension works without an account — signing in is optional and your data only syncs when you choose.",
-};
+export const Route = createFileRoute("/signup")({
+  head: () => ({
+    meta: [
+      { title: "Create an account — Mend" },
+      {
+        name: "description",
+        content:
+          "Create a free Mend account to save and aggregate your accessibility audits. The extension works without an account — signing in is optional and your data only syncs when you choose.",
+      },
+    ],
+  }),
+  component: SignupPage,
+});
 
-export default function SignupPage() {
+function SignupPage() {
   return (
     <MarketingShell current="signup">
       <section className="section auth" aria-labelledby="auth-h">

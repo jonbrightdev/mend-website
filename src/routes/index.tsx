@@ -1,9 +1,14 @@
+import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { BrandMark } from "@/components/BrandMark";
 import { Pip } from "@/components/Pip";
 import { site } from "@/lib/site";
 
-export default function HomePage() {
+export const Route = createFileRoute("/")({
+  component: HomePage,
+});
+
+function HomePage() {
   return (
     <MarketingShell current="home">
       {/* HERO */}
@@ -172,6 +177,7 @@ export default function HomePage() {
 
       {/* HOW IT WORKS */}
       <section
+        id="how-it-works"
         className="section section--tight"
         aria-labelledby="how-h"
         style={{ background: "var(--surface)", borderBlock: "1px solid var(--border)" }}
