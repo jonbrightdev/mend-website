@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { site } from "@/lib/site";
+import { getSessionUser } from "@/lib/session";
 
 export const Route = createFileRoute("/support")({
+  loader: () => getSessionUser(),
   head: () => ({
     meta: [
       { title: "Support — Mend" },
@@ -18,8 +20,12 @@ export const Route = createFileRoute("/support")({
 });
 
 function SupportPage() {
+  const user = Route.useLoaderData();
   return (
-    <MarketingShell current="support">
+    <MarketingShell
+      current="support"
+      account={user ? { name: user.name, email: user.email } : undefined}
+    >
       <div className="wrap page-head">
         <p className="eyebrow">Help</p>
         <h1>Support</h1>

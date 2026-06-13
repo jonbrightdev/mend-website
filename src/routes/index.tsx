@@ -3,14 +3,20 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { BrandMark } from "@/components/BrandMark";
 import { Pip } from "@/components/Pip";
 import { site } from "@/lib/site";
+import { getSessionUser } from "@/lib/session";
 
 export const Route = createFileRoute("/")({
+  loader: () => getSessionUser(),
   component: HomePage,
 });
 
 function HomePage() {
+  const user = Route.useLoaderData();
   return (
-    <MarketingShell current="home">
+    <MarketingShell
+      current="home"
+      account={user ? { name: user.name, email: user.email } : undefined}
+    >
       {/* HERO */}
       <section className="hero" aria-labelledby="hero-h">
         <div className="wrap hero__grid">

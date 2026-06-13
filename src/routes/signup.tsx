@@ -1,9 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { SignupForm } from "@/components/auth/SignupForm";
+import { getSessionUser } from "@/lib/session";
 
 export const Route = createFileRoute("/signup")({
+  // Already signed in? Skip the form and go straight to the dashboard.
+  beforeLoad: async () => {
+    if (await getSessionUser()) throw redirect({ to: "/dashboard" });
+  },
   head: () => ({
     meta: [
       { title: "Create an account — Mend" },

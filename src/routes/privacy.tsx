@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { site } from "@/lib/site";
+import { getSessionUser } from "@/lib/session";
 
 export const Route = createFileRoute("/privacy")({
+  loader: () => getSessionUser(),
   head: () => ({
     meta: [
       { title: "Privacy Policy — Mend" },
@@ -17,8 +19,12 @@ export const Route = createFileRoute("/privacy")({
 });
 
 function PrivacyPage() {
+  const user = Route.useLoaderData();
   return (
-    <MarketingShell current="privacy">
+    <MarketingShell
+      current="privacy"
+      account={user ? { name: user.name, email: user.email } : undefined}
+    >
       <div className="wrap page-head">
         <p className="eyebrow">Legal</p>
         <h1>Privacy Policy</h1>

@@ -181,14 +181,28 @@ function EmptyState() {
       </svg>
       <h2>No audits yet</h2>
       <p>
-        Run your first audit from the Mend side panel and it&apos;ll show up here. Once you&apos;ve scanned a page while signed in, this dashboard fills with violations you can filter and track.
+        Audits show up here once you connect the Mend extension to your account.
+        It takes about a minute:
       </p>
+      <ol className="connect-steps">
+        <li>
+          Generate an <strong>account key</strong> on your account page.
+        </li>
+        <li>
+          In the extension, open <strong>Settings</strong> → “Save audits to my
+          dashboard”, paste the key, and hit Save.
+        </li>
+        <li>
+          Run an audit and click <strong>“Save to dashboard”</strong> — it lands
+          here.
+        </li>
+      </ol>
       <div className="state__cta">
-        <Link className="btn btn--primary btn--lg" to="/" hash="how-it-works">
-          How to run an audit
+        <Link className="btn btn--primary btn--lg" to="/account">
+          Get your account key
         </Link>
-        <Link className="btn btn--ghost btn--lg" to="/support">
-          Get help
+        <Link className="btn btn--ghost btn--lg" to="/" hash="how-it-works">
+          How to run an audit
         </Link>
       </div>
     </div>
@@ -322,6 +336,9 @@ export function DashboardClient({ audits, runDates }: Props) {
             Last synced {lastAudit ? relTime(lastAudit.scannedAt) : "—"} · {audits.length} page{audits.length !== 1 ? "s" : ""} · {totalViolations(audits)} open violation{totalViolations(audits) !== 1 ? "s" : ""}
           </p>
         </div>
+        <Link className="btn btn--ghost" to="/account">
+          Connect extension
+        </Link>
       </div>
 
       {/* Main toolbar: search + scope + layout */}

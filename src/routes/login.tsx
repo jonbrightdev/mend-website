@@ -1,8 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { getSessionUser } from "@/lib/session";
 
 export const Route = createFileRoute("/login")({
+  // Already signed in? There's nothing to log into — go to the dashboard.
+  beforeLoad: async () => {
+    if (await getSessionUser()) throw redirect({ to: "/dashboard" });
+  },
   head: () => ({
     meta: [
       { title: "Log in — Mend" },

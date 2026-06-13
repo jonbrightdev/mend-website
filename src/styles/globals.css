@@ -629,3 +629,15 @@ code, kbd, pre { font-family: var(--font-mono); }
 }
 .key-list__name { font-weight: 650; }
 .key-list__meta { color: var(--muted); font-size: .92rem; margin-top: .2rem; }
+
+.connect-steps {
+  text-align: left;
+  max-width: 46ch;
+  margin: 0 auto 1.4rem;
+  padding-left: 1.3rem;
+  color: var(--muted);
+  display: grid;
+  gap: .5rem;
+}
+.connect-steps li { padding-left: .2rem; }
+.connect-steps strong { color: var(--text); font-weight: 650; }
