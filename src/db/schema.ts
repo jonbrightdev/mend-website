@@ -86,6 +86,22 @@ export const audit = pgTable(
   (t) => [uniqueIndex("audit_user_url_scanned").on(t.userId, t.url, t.scannedAt)],
 );
 
+// Long-lived keys the Mend extension uses to authenticate to /api/ingest
+// (see src/lib/api-key.ts). Only the SHA-256 hash is stored; the plaintext is
+// shown once at creation. A key is active while revokedAt is null. The unique
+// index on hashedKey is the lookup path on every ingest request.
+export const apiKey = pgTable("apiKey", {
+  id: text("id").primaryKey(),
+  userId: text("userId")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  hashedKey: text("hashedKey").notNull().unique(),
+  name: text("name").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  lastUsedAt: timestamp("lastUsedAt"),
+  revokedAt: timestamp("revokedAt"),
+});
+
 // Issues grouped by rule within a run, mirroring the portal's Violation shape.
 // nodes holds the affected elements ({ target, html, failureSummary }); tags
 // holds the extension's category plus WCAG criteria numbers.

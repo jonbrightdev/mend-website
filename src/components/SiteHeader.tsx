@@ -9,7 +9,8 @@ export type NavPage =
   | "support"
   | "login"
   | "signup"
-  | "dashboard";
+  | "dashboard"
+  | "account";
 
 type Account = { name: string; email: string };
 
@@ -52,15 +53,12 @@ export function SiteHeader({
           <a href={site.githubUrl}>GitHub</a>
           {account ? (
             <>
-              <span
-                style={{
-                  padding: "0 .35rem",
-                  color: "var(--muted)",
-                  fontWeight: 550,
-                }}
+              <Link
+                to="/account"
+                aria-current={current === "account" ? "page" : undefined}
               >
                 {account.name}
-              </span>
+              </Link>
               <SignOutButton />
             </>
           ) : (

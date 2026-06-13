@@ -1,15 +1,54 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { audit, violation } from "@/db/schema";
+import { apiKey, audit, violation } from "@/db/schema";
+import { hashKey } from "@/lib/api-key";
 import type { Impact, ViolationNode } from "@/lib/dashboard-data";
 
 // Accepts the extension's AuditResult payload (../mend-a11y/src/lib/types.ts)
 // plus an optional pageTitle. Issues arrive flat (one per affected element)
 // and are grouped by rule here to match the portal's Violation shape.
 //
-// Auth is the Better Auth session cookie — the extension runs in the same
-// browser profile, so a signed-in user's cookie rides along on the request.
+// Auth resolves a userId in two ways. The extension can't send a session cookie
+// (it's a cross-site request from a chrome-extension:// origin, and the cookie
+// is SameSite=Lax), so it sends `Authorization: Bearer <api key>`. We check that
+// first, then fall back to the Better Auth session cookie so same-origin callers
+// and tests still work.
+
+// Pulls the bearer token from the Authorization header, if present and shaped
+// like our key. Returns null otherwise so we fall through to the cookie path.
+function bearerToken(request: Request): string | null {
+  const header = request.headers.get("authorization");
+  if (!header) return null;
+  const match = /^Bearer\s+(.+)$/i.exec(header.trim());
+  const token = match?.[1]?.trim();
+  return token ? token : null;
+}
+
+// Resolves the acting user: a valid, non-revoked API key wins; otherwise the
+// session cookie. Returns null when neither identifies a user.
+async function resolveUserId(request: Request): Promise<string | null> {
+  const token = bearerToken(request);
+  if (token) {
+    const hashed = await hashKey(token);
+    const [row] = await db
+      .select({ id: apiKey.id, userId: apiKey.userId, revokedAt: apiKey.revokedAt })
+      .from(apiKey)
+      .where(eq(apiKey.hashedKey, hashed))
+      .limit(1);
+    if (!row || row.revokedAt) return null;
+    // Best-effort touch so the user can see the key is live; don't block on it.
+    void db
+      .update(apiKey)
+      .set({ lastUsedAt: new Date() })
+      .where(eq(apiKey.id, row.id));
+    return row.userId;
+  }
+
+  const session = await auth.api.getSession({ headers: request.headers });
+  return session?.user.id ?? null;
+}
 
 const IMPACTS = new Set<string>(["critical", "serious", "moderate", "minor"]);
 
@@ -132,8 +171,8 @@ export const Route = createFileRoute("/api/ingest")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const session = await auth.api.getSession({ headers: request.headers });
-        if (!session) {
+        const userId = await resolveUserId(request);
+        if (!userId) {
           return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -159,7 +198,7 @@ export const Route = createFileRoute("/api/ingest")({
           .insert(audit)
           .values({
             id: auditId,
-            userId: session.user.id,
+            userId,
             url: payload.url,
             pageTitle: payload.pageTitle,
             scannedAt: payload.scannedAt,

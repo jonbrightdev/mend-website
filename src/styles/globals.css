@@ -586,3 +586,46 @@ code, kbd, pre { font-family: var(--font-mono); }
   .hero__grid { grid-template-columns: 1.05fr .95fr; }
   .hero__sub { font-size: 1.22rem; }
 }
+
+/* ---- Account / connect extension --------------------------------- */
+.muted { color: var(--muted); }
+
+.key-reveal {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.1rem 1.25rem;
+  margin: 1.2rem 0;
+  max-width: var(--maxw-prose);
+}
+.key-reveal__row {
+  display: flex;
+  gap: .6rem;
+  margin-top: .8rem;
+  flex-wrap: wrap;
+}
+.key-reveal__row .input {
+  flex: 1 1 16rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.key-list {
+  list-style: none;
+  padding: 0;
+  margin: .8rem 0 0;
+  display: grid;
+  gap: .7rem;
+  max-width: var(--maxw-prose);
+}
+.key-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: .9rem 1.1rem;
+}
+.key-list__name { font-weight: 650; }
+.key-list__meta { color: var(--muted); font-size: .92rem; margin-top: .2rem; }
