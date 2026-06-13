@@ -66,6 +66,33 @@ export interface RuleSpec {
   tags: string[];
 }
 
+// Official W3C "Understanding" slugs, keyed by SC number. The slug isn't always
+// derivable from the criterion label we store (e.g. 2.4.4 is shown as "Link
+// Purpose" but the page is link-purpose-in-context), so map them explicitly.
+const WCAG_SLUGS: Record<string, string> = {
+  "1.1.1": "non-text-content",
+  "1.3.1": "info-and-relationships",
+  "1.4.3": "contrast-minimum",
+  "2.4.2": "page-titled",
+  "2.4.4": "link-purpose-in-context",
+  "3.1.1": "language-of-page",
+  "4.1.1": "parsing",
+  "4.1.2": "name-role-value",
+};
+
+/**
+ * Official WCAG Understanding URL for a criterion label like
+ * "1.1.1 Non-text Content (A)", or null when we don't have a verified slug for
+ * it (so the caller renders plain text rather than a broken link).
+ */
+export function wcagUnderstandingUrl(criterion: string): string | null {
+  const num = criterion.match(/^[\d.]+/)?.[0]?.replace(/\.$/, "");
+  const slug = num ? WCAG_SLUGS[num] : undefined;
+  return slug
+    ? `https://www.w3.org/WAI/WCAG21/Understanding/${slug}.html`
+    : null;
+}
+
 export const RULES: Record<string, RuleSpec> = {
   "image-alt": {
     impact: "critical",

@@ -3,7 +3,12 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { DetailsChipPanel } from "@/components/DetailsChipPanel";
-import { ruleSpecFor, fmtDate, fmtDateTime } from "@/lib/dashboard-data";
+import {
+  ruleSpecFor,
+  wcagUnderstandingUrl,
+  fmtDate,
+  fmtDateTime,
+} from "@/lib/dashboard-data";
 import { fetchAudit } from "@/lib/dashboard-fns";
 
 export const Route = createFileRoute("/audits/$auditId/$ruleId")({
@@ -249,11 +254,14 @@ function DetailsPage() {
                     Not mapped to a specific criterion.
                   </li>
                 )}
-                {rule.wcag.map((criterion) =>
-                  rule.helpUrl ? (
+                {rule.wcag.map((criterion) => {
+                  // Link the criterion to its official W3C Understanding page;
+                  // the Deque how-to lives in its own button below.
+                  const specUrl = wcagUnderstandingUrl(criterion);
+                  return specUrl ? (
                     <li key={criterion}>
                       <a
-                        href={rule.helpUrl}
+                        href={specUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -262,8 +270,8 @@ function DetailsPage() {
                     </li>
                   ) : (
                     <li key={criterion}>{criterion}</li>
-                  ),
-                )}
+                  );
+                })}
               </ul>
               <p
                 style={{
