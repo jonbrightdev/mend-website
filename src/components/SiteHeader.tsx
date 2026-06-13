@@ -54,6 +54,12 @@ export function SiteHeader({
           {account ? (
             <>
               <Link
+                to="/dashboard"
+                aria-current={current === "dashboard" ? "page" : undefined}
+              >
+                Dashboard
+              </Link>
+              <Link
                 to="/account"
                 aria-current={current === "account" ? "page" : undefined}
               >
