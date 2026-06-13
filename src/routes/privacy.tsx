@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { site } from "@/lib/site";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser } from "@/lib/session-fns";
 
 export const Route = createFileRoute("/privacy")({
   loader: () => getSessionUser(),

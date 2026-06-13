@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { SignupForm } from "@/components/auth/SignupForm";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser } from "@/lib/session-fns";
 
 export const Route = createFileRoute("/signup")({
   // Already signed in? Skip the form and go straight to the dashboard.

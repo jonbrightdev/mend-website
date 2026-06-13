@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link } from "@tanstack/react-router";
+import { Pip } from "@/components/Pip";
 import {
   type AuditRecord,
   type Impact,
@@ -157,28 +158,14 @@ function TrendChart({ pts }: { pts: { date: string; total: number }[] }) {
 function EmptyState() {
   return (
     <div className="state">
-      {/* Pip waving — inline SVG from design */}
-      <svg className="pip" viewBox="0 0 260 280" role="img" aria-label="Pip waving by an empty clipboard">
-        <g fill="#f8f1e3" stroke="#c4502c" strokeWidth="5" strokeLinejoin="round">
-          <ellipse cx="106" cy="252" rx="21" ry="13" />
-          <ellipse cx="156" cy="252" rx="21" ry="13" />
-        </g>
-        <path d="M130 56 C 196 56 218 104 218 152 C 218 214 182 252 130 252 C 78 252 42 214 42 152 C 42 104 64 56 130 56 Z" fill="#f8f1e3" stroke="#c4502c" strokeWidth="5" strokeLinejoin="round" />
-        <g fill="#ffffff" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="101" cy="120" r="30" />
-          <circle cx="159" cy="120" r="30" />
-        </g>
-        <g fill="#1d1a14">
-          <circle cx="103" cy="124" r="7.5" />
-          <circle cx="157" cy="124" r="7.5" />
-        </g>
-        <g fill="#ffffff">
-          <circle cx="106" cy="121" r="2.4" />
-          <circle cx="160" cy="121" r="2.4" />
-        </g>
-        <path d="M112 158 q 18 14 36 0" fill="none" stroke="#1d1a14" strokeWidth="4.5" strokeLinecap="round" />
-        <path d="M52 178 q -16 16 -6 34" fill="none" stroke="#c4502c" strokeWidth="5" strokeLinecap="round" />
-      </svg>
+      {/* Shared Pip so the dashboard matches the rest of the site (arm + clipboard). */}
+      <Pip
+        className="pip"
+        titleId="pipEmptyT"
+        descId="pipEmptyD"
+        title="Pip, the Mend inspector"
+        desc="The round Mend mascot with round glasses, holding a clipboard with a checklist."
+      />
       <h2>No audits yet</h2>
       <p>
         Audits show up here once you connect the Mend extension to your account.

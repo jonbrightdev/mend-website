@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { LoginForm } from "@/components/auth/LoginForm";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser } from "@/lib/session-fns";
 
 export const Route = createFileRoute("/login")({
   // Already signed in? There's nothing to log into — go to the dashboard.

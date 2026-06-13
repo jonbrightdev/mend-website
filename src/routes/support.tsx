@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { site } from "@/lib/site";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser } from "@/lib/session-fns";
 
 export const Route = createFileRoute("/support")({
   loader: () => getSessionUser(),

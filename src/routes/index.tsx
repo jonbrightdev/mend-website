@@ -3,7 +3,7 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { BrandMark } from "@/components/BrandMark";
 import { Pip } from "@/components/Pip";
 import { site } from "@/lib/site";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser } from "@/lib/session-fns";
 
 export const Route = createFileRoute("/")({
   loader: () => getSessionUser(),
