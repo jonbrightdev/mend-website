@@ -56,16 +56,18 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
   }
 
   return (
-    <section className="section" aria-labelledby="connect-h">
-      <div className="wrap">
-        <p className="eyebrow">Extension</p>
+    <section className="panel" aria-labelledby="connect-h">
+      <div className="panel__head">
         <h2 id="connect-h">Connect the Mend extension</h2>
-        <p className="lede">
-          Generate a key, paste it into the extension&apos;s settings, and the
-          audits you choose to save will appear on your dashboard.
+      </div>
+      <div className="panel__body">
+        <p className="muted" style={{ marginTop: 0, maxWidth: "60ch" }}>
+          Generate a key, paste it into the extension&apos;s Settings → “Save
+          audits to my dashboard”, and the audits you choose to save will appear
+          here.
         </p>
 
-        <div className="callout" style={{ margin: "1rem 0 1.6rem" }}>
+        <div className="callout" style={{ margin: "1rem 0 1.4rem" }}>
           <p>
             <strong>What syncing sends.</strong> Only the audits you explicitly
             save. Each one includes the page URL and title, and for every issue a
@@ -83,7 +85,7 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
 
         {freshKey ? (
           <div className="key-reveal" role="status" aria-live="polite">
-            <p>
+            <p style={{ marginTop: 0 }}>
               <strong>Your new key.</strong> Copy it now — for your security it
               won&apos;t be shown again.
             </p>
@@ -110,7 +112,7 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
           </div>
         ) : (
           <button
-            className="btn btn--primary btn--lg"
+            className="btn btn--primary"
             type="button"
             disabled={pending}
             onClick={onGenerate}
@@ -119,9 +121,11 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
           </button>
         )}
 
-        <h3 style={{ marginTop: "2rem" }}>Your keys</h3>
+        <h3 style={{ margin: "1.8rem 0 .5rem", fontSize: "1.05rem" }}>Your keys</h3>
         {activeKeys.length === 0 ? (
-          <p className="muted">No active keys. Generate one to connect.</p>
+          <p className="muted" style={{ margin: 0 }}>
+            No active keys. Generate one to connect.
+          </p>
         ) : (
           <ul className="key-list">
             {activeKeys.map((k) => (
