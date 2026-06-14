@@ -38,8 +38,10 @@ async function resolveUserId(request: Request): Promise<string | null> {
       .where(eq(apiKey.hashedKey, hashed))
       .limit(1);
     if (!row || row.revokedAt) return null;
-    // Best-effort touch so the user can see the key is live; don't block on it.
-    void db
+    // Touch lastUsedAt so the account page can show the key is live. Must be
+    // awaited: Drizzle query builders are lazy and only run when awaited, so a
+    // fire-and-forget `void db.update(...)` would never actually execute.
+    await db
       .update(apiKey)
       .set({ lastUsedAt: new Date() })
       .where(eq(apiKey.id, row.id));
