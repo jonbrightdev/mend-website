@@ -15,6 +15,22 @@ import type { Impact, ViolationNode } from "@/lib/dashboard-data";
 // is SameSite=Lax), so it sends `Authorization: Bearer <api key>`. We check that
 // first, then fall back to the Better Auth session cookie so same-origin callers
 // and tests still work.
+//
+// The extension's request is cross-origin and carries an Authorization header,
+// so the browser preflights it. A wildcard origin is safe here: auth is the
+// bearer key, never a cookie, and the browser refuses to pair a wildcard with
+// credentialed requests anyway.
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Max-Age": "86400",
+} as const;
+
+function json(data: unknown, status: number): Response {
+  return Response.json(data, { status, headers: CORS_HEADERS });
+}
 
 // Pulls the bearer token from the Authorization header, if present and shaped
 // like our key. Returns null otherwise so we fall through to the cookie path.
@@ -172,17 +188,18 @@ function groupViolations(auditId: string, issues: IngestIssue[]) {
 export const Route = createFileRoute("/api/ingest")({
   server: {
     handlers: {
+      OPTIONS: () => new Response(null, { status: 204, headers: CORS_HEADERS }),
       POST: async ({ request }) => {
         const userId = await resolveUserId(request);
         if (!userId) {
-          return Response.json({ error: "Unauthorized" }, { status: 401 });
+          return json({ error: "Unauthorized" }, 401);
         }
 
         let body: unknown;
         try {
           body = await request.json();
         } catch {
-          return Response.json({ error: "Body must be JSON" }, { status: 400 });
+          return json({ error: "Body must be JSON" }, 400);
         }
 
         let payload: IngestPayload;
@@ -190,7 +207,7 @@ export const Route = createFileRoute("/api/ingest")({
           payload = parsePayload(body);
         } catch (e) {
           if (e instanceof IngestError) {
-            return Response.json({ error: e.message }, { status: 400 });
+            return json({ error: e.message }, 400);
           }
           throw e;
         }
@@ -213,7 +230,7 @@ export const Route = createFileRoute("/api/ingest")({
 
         // Same (user, url, scannedAt) already stored: idempotent success.
         if (inserted.length === 0) {
-          return Response.json({ duplicate: true }, { status: 200 });
+          return json({ duplicate: true }, 200);
         }
 
         const violations = groupViolations(auditId, payload.issues);
@@ -221,10 +238,7 @@ export const Route = createFileRoute("/api/ingest")({
           await db.insert(violation).values(violations);
         }
 
-        return Response.json(
-          { auditId, violations: violations.length },
-          { status: 201 },
-        );
+        return json({ auditId, violations: violations.length }, 201);
       },
     },
   },
