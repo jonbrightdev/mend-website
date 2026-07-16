@@ -302,14 +302,14 @@ export function DashboardClient({ audits, runDates }: Props) {
 
   if (audits.length === 0) {
     return (
-      <div className="wrap app-main">
+      <div className="wrap app-main app-main--enter">
         <EmptyState />
       </div>
     );
   }
 
   return (
-    <div className="wrap app-main">
+    <div className="wrap app-main app-main--enter">
       {/* App head */}
       <div className="app-head">
         <div>

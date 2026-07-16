@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//private/tmp/**)",
+      "Bash(rm -rf tss-ref)",
+      "Bash(pnpm create *)",
+      "Bash(pnpm dlx *)",
+      "Bash(npm view *)",
+      "Bash(pnpm install *)",
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('@tanstack/react-start/package.json'\\).exports\\)\\)\")",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d['exports'].get\\('./server'\\),indent=1\\)\\)\")",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

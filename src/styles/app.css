@@ -165,6 +165,12 @@
    APP SHELL (dashboard + details)
    ============================================================ */
 .app-main { padding-block: clamp(1.5rem, 3vw, 2.4rem) clamp(3rem, 6vw, 4.5rem); }
+.app-main--enter {
+  transition: opacity 200ms var(--ease-out);
+}
+@starting-style {
+  .app-main--enter { opacity: 0; }
+}
 
 .app-head {
   display: flex; align-items: flex-end; justify-content: space-between;
@@ -571,7 +577,12 @@ table.data .num { font-family: var(--font-mono); }
   animation: spin .8s linear infinite; flex: none;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2s; } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
 
 /* Demo-state switcher (review aid) */
 .demobar {
