@@ -1,0 +1,125 @@
+/* ============================================================
+   Pure parsing for the extension's ingest payload: validation
+   and rule grouping, with no database access — so the route in
+   src/routes/api/ingest.ts and its tests can share it. The
+   route owns auth, CORS and persistence.
+   ============================================================ */
+
+import type { Impact, ViolationNode } from "@/lib/dashboard-data";
+
+const IMPACTS = new Set<string>(["critical", "serious", "moderate", "minor"]);
+
+export interface IngestIssue {
+  ruleId: string;
+  impact: Impact;
+  category: string;
+  wcag: string[];
+  title: string;
+  description: string;
+  helpUrl?: string;
+  selector: string;
+  html: string;
+  failureSummary?: string;
+  domOrder: number;
+}
+
+export interface IngestPayload {
+  url: string;
+  pageTitle: string;
+  scannedAt: Date;
+  durationMs?: number;
+  totalChecks?: number;
+  partial: boolean;
+  issues: IngestIssue[];
+}
+
+function bad(message: string): never {
+  throw new IngestError(message);
+}
+
+export class IngestError extends Error {}
+
+function str(v: unknown, field: string, opts?: { optional?: boolean }): string {
+  if (v == null && opts?.optional) return "";
+  if (typeof v !== "string") bad(`${field} must be a string`);
+  return v;
+}
+
+export function parsePayload(body: unknown): IngestPayload {
+  if (typeof body !== "object" || body === null) bad("body must be an object");
+  const b = body as Record<string, unknown>;
+
+  const url = str(b.url, "url");
+  if (!/^https?:\/\//.test(url)) bad("url must be an http(s) URL");
+
+  if (typeof b.startedAt !== "number" || !Number.isFinite(b.startedAt)) {
+    bad("startedAt must be an epoch-ms number");
+  }
+  const scannedAt = new Date(b.startedAt);
+  if (Number.isNaN(scannedAt.getTime())) bad("startedAt is not a valid time");
+
+  if (!Array.isArray(b.issues)) bad("issues must be an array");
+  const issues = b.issues.map((raw, i): IngestIssue => {
+    if (typeof raw !== "object" || raw === null) bad(`issues[${i}] must be an object`);
+    const it = raw as Record<string, unknown>;
+    const impact = str(it.impact, `issues[${i}].impact`);
+    if (!IMPACTS.has(impact)) bad(`issues[${i}].impact must be one of critical|serious|moderate|minor`);
+    return {
+      ruleId: str(it.ruleId, `issues[${i}].ruleId`) || bad(`issues[${i}].ruleId is empty`),
+      impact: impact as Impact,
+      category: str(it.category, `issues[${i}].category`, { optional: true }),
+      wcag: Array.isArray(it.wcag) ? it.wcag.filter((w): w is string => typeof w === "string") : [],
+      title: str(it.title, `issues[${i}].title`),
+      description: str(it.description, `issues[${i}].description`, { optional: true }),
+      helpUrl: typeof it.helpUrl === "string" ? it.helpUrl : undefined,
+      selector: str(it.selector, `issues[${i}].selector`),
+      html: str(it.html, `issues[${i}].html`, { optional: true }),
+      failureSummary: typeof it.failureSummary === "string" ? it.failureSummary : undefined,
+      domOrder: typeof it.domOrder === "number" ? it.domOrder : i,
+    };
+  });
+
+  return {
+    url,
+    pageTitle: str(b.pageTitle, "pageTitle", { optional: true }) || url,
+    scannedAt,
+    durationMs: typeof b.durationMs === "number" ? Math.round(b.durationMs) : undefined,
+    totalChecks: typeof b.totalChecks === "number" ? Math.round(b.totalChecks) : undefined,
+    partial: b.partial === true,
+    issues,
+  };
+}
+
+export function groupViolations(auditId: string, issues: IngestIssue[]) {
+  const byRule = new Map<string, IngestIssue[]>();
+  for (const issue of issues) {
+    const list = byRule.get(issue.ruleId) ?? [];
+    list.push(issue);
+    byRule.set(issue.ruleId, list);
+  }
+  return [...byRule.entries()].map(([ruleId, group]) => {
+    const first = group[0]!;
+    const nodes: ViolationNode[] = [...group]
+      .sort((a, b) => a.domOrder - b.domOrder)
+      .map((issue) => ({
+        target: issue.selector,
+        html: issue.html,
+        failureSummary: issue.failureSummary ?? "",
+      }));
+    const tags = [
+      ...(first.category ? [first.category] : []),
+      ...new Set(group.flatMap((issue) => issue.wcag)),
+    ];
+    return {
+      id: crypto.randomUUID(),
+      auditId,
+      ruleId,
+      impact: first.impact,
+      help: first.title,
+      helpUrl: first.helpUrl ?? null,
+      description: first.description,
+      tags,
+      nodes,
+    };
+  });
+}
