@@ -19,7 +19,7 @@ Each plan is self-contained — an executor needs no other context. Read the pla
 | 006 | [Give the API key reveal an entrance](006-api-key-reveal-entrance.md) | — | S | 001 | DONE |
 | 007 | [Fade the dashboard in over its skeleton](007-dashboard-loaded-fade.md) | — | S | 001 | DONE |
 | 008 | [Make the hero's floating panel float](008-hero-panel-drift.md) | — | S | — | DONE |
-| 009 | [Establish a test suite (Vitest) and CI](009-test-and-ci-baseline.md) | P1 | M | — | TODO |
+| 009 | [Establish a test suite (Vitest) and CI](009-test-and-ci-baseline.md) | P1 | M | — | BLOCKED — steps 1–3, 5 done; PGlite harness needs `drizzle/` regenerated (stale: missing audit/apiKey/violation) |
 | 010 | [Make ingest write audit + violations atomically](010-transactional-ingest.md) | P1 | S | 009 | TODO |
 | 011 | [Cap ingest payload sizes, timestamps, and keys per user](011-ingest-abuse-limits.md) | P1 | S | 009, 010 | TODO |
 | 013 | [Replace the dead "Forgot password?" link with a working reset flow](013-password-reset.md) | P1 | M | — | TODO |
