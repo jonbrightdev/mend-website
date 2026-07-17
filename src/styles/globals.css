@@ -151,6 +151,15 @@ code, kbd, pre { font-family: var(--font-mono); }
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
   }
+  /* The page cross-fade (router.tsx's defaultViewTransition) needs its own
+     opt-out: view-transition pseudo-elements sit in a separate tree off the
+     root, so the `*` rule above never matches them. Without this they would
+     keep animating for exactly the users who asked us not to. */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }
 
 /* ---- Entrance & scroll-reveal primitives -------------------------- */
