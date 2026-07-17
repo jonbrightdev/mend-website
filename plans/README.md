@@ -89,12 +89,31 @@ So nobody re-audits these (general audit at `dbd4669`):
 So nobody re-litigates these (animation audit at `88d2ab8`):
 
 - **Auto-cycling the codeflip before ⇄ after every 3s**: requested during the audit, rejected and replaced by 019's one-shot scroll-driven wipe. An indefinite loop is a WCAG 2.2.2 (Pause, Stop, Hide) failure — automatically-starting motion running past 5s needs a pause control, and `aria-hidden` does not exempt it, since 2.2.2 governs visual motion. Shipping that inside the "It passes its own audit" section is not a trade worth making. Scroll-driven motion is user-initiated, so 019 sidesteps it entirely.
-- **JS/IntersectionObserver scroll reveal**: rejected in favour of CSS `@supports (animation-timeline: view())`. The JS pattern requires an `opacity: 0` resting state that only JS clears — so a hydration failure hides the entire page permanently. Unacceptable for an accessibility product, and `@supports` degrades to "just show the content" for free. It also matches the existing `@supports (interpolate-size: allow-keywords)` house style at `src/styles/globals.css:577`.
+- **JS/IntersectionObserver scroll reveal**: rejected in favour of CSS `@supports (animation-timeline: view())`. The JS pattern requires an `opacity: 0` resting state that only JS clears — so a hydration failure hides the entire page permanently. Unacceptable for an accessibility product, and `@supports` degrades to "just show the content" for free. It matches the `@supports (animation-timeline: view())` house style in `src/styles/globals.css`.
 - **The global reduced-motion kill switch** (`src/styles/globals.css:143-149`): still a deliberate default; new motion opts out locally by being gated on `no-preference` (plan 002 settled this). Note the sharp edge that shaped plan 016: it kills `animation-duration` and `animation-iteration-count` but **not** `animation-delay`, so a staggered entrance left active under reduced motion would hold at `opacity: 0` for its delay and then snap in.
 - **Revealing the privacy/support prose bodies on scroll**: deliberately not done (see 020). These are read, not sold — animating body text delays the words at the moment the reader wants them.
 - **Expressive motion on dashboard filtering**: deliberately restrained to a 160ms opacity-only fade (see 022). Filtering is high-frequency UI, where the playbook reduces motion rather than adding it.
 - **Rewriting `.sk` to animate `transform` instead of `background-position`**: `background-position` is not compositable, but it is a few skeleton blocks shown briefly. 022 fixes only the timing function (`ease` → `linear`, which was causing a visible hitch at each loop boundary) and leaves the technique alone.
-- **Exit animations** for the auth form (021) and filtered-out dashboard rows (022): CSS cannot animate what React has unmounted, and a View Transition or exit-animation library is disproportionate machinery for either. Both entrances carry the meaning on their own.
+- **Exit animations** for the auth form (021) and filtered-out dashboard rows (022): CSS cannot animate what React has unmounted, and a View Transition or exit-animation library is disproportionate machinery for either. Both entrances carry the meaning on their own. (This rejects exit animations for *those two components*, not the page-level cross-fade added later — see below.)
+
+Landed after the audit (2026-07-17), so nobody reverts them:
+
+- **The FAQ accordion no longer uses `interpolate-size`.** Plan 005 gated the
+  reveal on `@supports (interpolate-size: allow-keywords)`, accepting that only
+  Chrome would animate. That property is still Chromium-only in mid-2026, so
+  Firefox and Safari snapped the panel open. It now animates `::details-content`
+  (Baseline since Sept 2025) as a one-row grid from `0fr` to `1fr` — real
+  numbers every engine can interpolate — so the `@supports` gate is gone and all
+  three engines animate. Do not "restore" `interpolate-size`. Verified in
+  Chromium and WebKit; Firefox's Playwright build would not launch locally, so it
+  is reasoned from support data, not observed.
+- **Page cross-fade** via `defaultViewTransition: true` (`src/router.tsx`).
+  Same-document view transitions are Baseline; the UA default is 250ms, which is
+  already `--dur-ui`. The sharp edge: the reduced-motion kill switch selects
+  `*, *::before, *::after`, which **cannot** reach the `::view-transition-*`
+  pseudos — they sit in their own tree off the root — so they need the explicit
+  `animation: none` opt-out that now sits in that same block. Removing it
+  silently re-animates the page for reduced-motion users.
 
 ## Direction ideas surfaced but not planned
 
