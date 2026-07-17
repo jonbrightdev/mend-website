@@ -11,16 +11,32 @@ added merge overhead. `main` is the single source of truth.
 Because `main` deploys, keep it releasable: run the checks below before pushing,
 and push work that is finished rather than parked half-done.
 
-## Node version: use 24
+## Toolchain: Node 24 LTS, pnpm from `packageManager`
 
-Run `nvm use` in the repo — `.nvmrc` pins Node 24, which is what CI installs.
+Run `nvm use` in the repo. `.nvmrc` says `24`, so you get the newest installed
+Node 24.x, and CI reads the same file via `node-version-file`. `engines` requires
+`>=24`, which is also what Railway's Nixpacks builder reads.
 
-Older Node will fail in a way that doesn't name the real problem. On Node 20,
+Node 24 is the active LTS — prefer it over the newest release. Node 25 and 26 are
+Current, not LTS, and no longer bundle corepack, so the `packageManager` pin
+stops being honoured the way it is here.
+
+pnpm's version comes from `packageManager` in package.json — bump it there, not
+by installing pnpm globally, so every machine and CI agree.
+
+Older Node fails in a way that doesn't name the real problem. On Node 20,
 `pnpm install` dies with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` from inside
 corepack: Node 20 bundles corepack 0.23, which loads `pnpm.cjs` without a
 dynamic-import callback, and pnpm 11 calls `import()` immediately. It crashes
-before pnpm can read `engines`, so the error never mentions the Node version.
-Node 25 doesn't bundle corepack at all. Stay on 24.
+before pnpm can read `engines`, so the error never mentions Node.
+
+## Dependency pinning
+
+`nitro` is aliased to an exact `nitro-nightly` build, not `@latest`. The stable
+`nitro` tag is still an older beta, and TanStack Start + Vite 8 need the nightly
+(`vite.config.ts` imports `nitro/vite`). Pin the exact build: with `@latest`,
+any `pnpm add` silently re-resolves the server runtime to a different nightly.
+To move it, change the version deliberately and check the build.
 
 ## Checks before pushing
 

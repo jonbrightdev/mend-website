@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@11.13.1",
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
@@ -25,14 +25,14 @@
     "@tanstack/router-plugin": "^1.132.0",
     "better-auth": "^1.6.17",
     "drizzle-orm": "^0.45.2",
-    "nitro": "npm:nitro-nightly@latest",
+    "nitro": "npm:nitro-nightly@3.0.1-20260715-190547-7af4fee3",
     "pg": "^8.21.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@tanstack/router-cli": "^1.132.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.13.3",
     "@types/pg": "^8.20.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

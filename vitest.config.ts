@@ -1,12 +1,8 @@
 import { defineConfig } from "vitest/config";
-import { fileURLToPath } from "node:url";
 
-// Vitest resolves `@/*` itself: the app's Vite config uses tsconfigPaths, which
-// isn't loaded here, so the alias is declared explicitly.
+// `@/*` resolves from tsconfig's paths, the same way vite.config.ts does it.
 export default defineConfig({
-  resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
-  },
+  resolve: { tsconfigPaths: true },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
