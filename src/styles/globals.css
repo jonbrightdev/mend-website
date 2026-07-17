@@ -666,22 +666,30 @@ code, kbd, pre { font-family: var(--font-mono); }
   font-size: 1.1rem; line-height: 1;
 }
 .faq details[open] summary .q-icon { transform: rotate(45deg); }
-@supports (interpolate-size: allow-keywords) {
-  .faq details {
-    interpolate-size: allow-keywords;
-  }
-  .faq details::details-content {
-    block-size: 0;
-    overflow: clip;
-    transition:
-      block-size 250ms var(--ease-out),
-      content-visibility 250ms allow-discrete;
-  }
-  .faq details[open]::details-content {
-    block-size: auto;
-  }
+/* The answer slides open in every engine. ::details-content is Baseline, but
+   interpolate-size — which is what would let block-size animate to auto — is
+   still Chromium-only, so this animates the slot as a one-row grid going
+   0fr → 1fr instead: both are real numbers, so every engine can interpolate
+   them. content-visibility needs allow-discrete, or the content would vanish
+   at the start of the collapse instead of riding it down. */
+.faq details::details-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows var(--dur-ui) var(--ease-out),
+    content-visibility var(--dur-ui) allow-discrete;
 }
-.faq .faq__body { padding: 0 1.2rem 1.15rem; color: var(--muted); }
+.faq details[open]::details-content {
+  grid-template-rows: 1fr;
+}
+/* The row only collapses to 0 if its item may shrink below its content and
+   clip the overflow. */
+.faq .faq__body {
+  padding: 0 1.2rem 1.15rem;
+  color: var(--muted);
+  min-block-size: 0;
+  overflow: clip;
+}
 .faq .faq__body p { margin: 0; }
 
 .support-contact {
