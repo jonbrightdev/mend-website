@@ -22,7 +22,8 @@ export function LoginForm() {
     if (sentTo) sentHeadingRef.current?.focus();
   }, [sentTo]);
 
-  const oauthVisible = authFeatures.google || authFeatures.magicLink;
+  const oauthVisible =
+    authFeatures.google || authFeatures.github || authFeatures.magicLink;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,10 +44,10 @@ export function LoginForm() {
     window.location.href = "/dashboard";
   }
 
-  async function onGoogle() {
+  async function onSocial(provider: "google" | "github") {
     setError(null);
     await authClient.signIn.social({
-      provider: "google",
+      provider,
       callbackURL: "/dashboard",
     });
   }
@@ -174,7 +175,11 @@ export function LoginForm() {
           <div className="auth-sep">or</div>
           <div className="oauth-stack">
             {authFeatures.google && (
-              <button className="btn btn--oauth" type="button" onClick={onGoogle}>
+              <button
+                className="btn btn--oauth"
+                type="button"
+                onClick={() => onSocial("google")}
+              >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="#4285F4" d="M22.5 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.2-4.8 3.2-7.8Z" />
                   <path fill="#34A853" d="M12 23c2.9 0 5.4-1 7.2-2.7l-3.6-2.7c-1 .7-2.3 1.1-3.6 1.1-2.8 0-5.1-1.9-6-4.4H2.3v2.8A11 11 0 0 0 12 23Z" />
@@ -182,6 +187,18 @@ export function LoginForm() {
                   <path fill="#EA4335" d="M12 5.5c1.6 0 3 .5 4.1 1.6l3.1-3.1A11 11 0 0 0 2.3 7.3L6 10.1c.9-2.6 3.2-4.6 6-4.6Z" />
                 </svg>
                 Continue with Google
+              </button>
+            )}
+            {authFeatures.github && (
+              <button
+                className="btn btn--oauth"
+                type="button"
+                onClick={() => onSocial("github")}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M12 .5A11.5 11.5 0 0 0 .5 12.27c0 5.2 3.3 9.6 7.86 11.16.58.11.79-.26.79-.57v-2c-3.2.71-3.87-1.58-3.87-1.58-.53-1.36-1.28-1.72-1.28-1.72-1.05-.73.08-.72.08-.72 1.16.08 1.77 1.21 1.77 1.21 1.03 1.8 2.7 1.28 3.36.98.1-.76.4-1.28.73-1.57-2.55-.3-5.23-1.31-5.23-5.82 0-1.29.45-2.34 1.19-3.16-.12-.3-.52-1.5.11-3.12 0 0 .97-.32 3.18 1.21a10.8 10.8 0 0 1 5.78 0c2.2-1.53 3.17-1.21 3.17-1.21.63 1.62.23 2.82.12 3.12.74.82 1.18 1.87 1.18 3.16 0 4.52-2.68 5.51-5.24 5.8.41.36.78 1.08.78 2.18v3.23c0 .31.2.68.8.57A11.77 11.77 0 0 0 23.5 12.27 11.5 11.5 0 0 0 12 .5Z" />
+                </svg>
+                Continue with GitHub
               </button>
             )}
             {authFeatures.magicLink && (

@@ -5,11 +5,14 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { sendMail } from "@/lib/mailer";
 
-// Google is added only when both credentials are present; magic link only when
-// explicitly enabled. Email + password is always available. This keeps the
-// optional sign-in methods entirely behind configuration.
+// Social providers are added only when both credentials are present; magic
+// link only when explicitly enabled. Email + password is always available.
+// This keeps the optional sign-in methods entirely behind configuration.
 const googleEnabled = Boolean(
   process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
+);
+const githubEnabled = Boolean(
+  process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
 );
 const magicLinkEnabled = import.meta.env.VITE_AUTH_MAGIC_LINK === "true";
 
@@ -30,16 +33,24 @@ export const auth = betterAuth({
       });
     },
   },
-  ...(googleEnabled
-    ? {
-        socialProviders: {
+  socialProviders: {
+    ...(googleEnabled
+      ? {
           google: {
             clientId: process.env.GOOGLE_CLIENT_ID as string,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
           },
-        },
-      }
-    : {}),
+        }
+      : {}),
+    ...(githubEnabled
+      ? {
+          github: {
+            clientId: process.env.GITHUB_CLIENT_ID as string,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+          },
+        }
+      : {}),
+  },
   plugins: magicLinkEnabled
     ? [
         magicLink({

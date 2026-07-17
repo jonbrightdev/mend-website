@@ -3,5 +3,6 @@
 // server credentials/provider together to enable a method.
 export const authFeatures = {
   google: import.meta.env.VITE_AUTH_GOOGLE === "true",
+  github: import.meta.env.VITE_AUTH_GITHUB === "true",
   magicLink: import.meta.env.VITE_AUTH_MAGIC_LINK === "true",
 } as const;
