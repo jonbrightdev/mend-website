@@ -96,33 +96,41 @@ export const Route = createFileRoute("/api/ingest")({
           throw e;
         }
 
+        // Both writes go in one transaction: a half-written run would be
+        // permanent, since the retry hits the conflict path below and returns
+        // success without ever writing the missing violations.
         const auditId = crypto.randomUUID();
-        const inserted = await db
-          .insert(audit)
-          .values({
-            id: auditId,
-            userId,
-            url: payload.url,
-            pageTitle: payload.pageTitle,
-            scannedAt: payload.scannedAt,
-            durationMs: payload.durationMs,
-            totalChecks: payload.totalChecks,
-            partial: payload.partial,
-          })
-          .onConflictDoNothing()
-          .returning();
+        const result = await db.transaction(async (tx) => {
+          const inserted = await tx
+            .insert(audit)
+            .values({
+              id: auditId,
+              userId,
+              url: payload.url,
+              pageTitle: payload.pageTitle,
+              scannedAt: payload.scannedAt,
+              durationMs: payload.durationMs,
+              totalChecks: payload.totalChecks,
+              partial: payload.partial,
+            })
+            .onConflictDoNothing()
+            .returning();
 
-        // Same (user, url, scannedAt) already stored: idempotent success.
-        if (inserted.length === 0) {
+          // Same (user, url, scannedAt) already stored: idempotent success.
+          if (inserted.length === 0) return { duplicate: true as const };
+
+          const violations = groupViolations(auditId, payload.issues);
+          if (violations.length > 0) {
+            await tx.insert(violation).values(violations);
+          }
+          return { duplicate: false as const, count: violations.length };
+        });
+
+        if (result.duplicate) {
           return json({ duplicate: true }, 200);
         }
 
-        const violations = groupViolations(auditId, payload.issues);
-        if (violations.length > 0) {
-          await db.insert(violation).values(violations);
-        }
-
-        return json({ auditId, violations: violations.length }, 201);
+        return json({ auditId, violations: result.count }, 201);
       },
     },
   },
