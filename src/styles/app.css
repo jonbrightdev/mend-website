@@ -150,7 +150,18 @@
 .auth-foot a { font-weight: 650; }
 
 /* Magic-link confirmation */
-.auth-sent { text-align: center; padding: .5rem 0 .3rem; }
+.auth-sent {
+  text-align: center;
+  padding: .5rem 0 .3rem;
+  transition: opacity var(--dur-ui) var(--ease-out),
+              transform var(--dur-ui) var(--ease-out);
+}
+@starting-style {
+  .auth-sent {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
 .auth-sent .auth-sent__ico {
   width: 64px; height: 64px; margin: 0 auto 1rem;
   display: grid; place-items: center;
@@ -431,6 +442,15 @@ table.data .num { font-family: var(--font-mono); }
 .rule-row {
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .9rem;
   padding: .85rem 1.3rem; border-bottom: 1px solid var(--border);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+/* Rows are keyed by ruleId, so filtering mounts genuinely new rows. This fades
+   those in rather than popping them under the cursor. Opacity only and 160ms on
+   purpose: filtering is high-frequency UI, where motion must be reduced, not
+   added — a rise or a stagger here would make the dashboard feel slower the more
+   it is used. */
+@starting-style {
+  .rule-row { opacity: 0; }
 }
 .rule-row:last-child { border-bottom: 0; }
 .rule-row__main { min-width: 0; }
@@ -563,7 +583,7 @@ table.data .num { font-family: var(--font-mono); }
 .state--error .state__ico { background: var(--crit-bg); color: var(--crit-tx); }
 
 /* Skeleton loading */
-.sk { background: linear-gradient(90deg, var(--surface) 25%, #efe9da 37%, var(--surface) 63%); background-size: 400% 100%; border-radius: var(--r-sm); animation: sk 1.4s ease infinite; }
+.sk { background: linear-gradient(90deg, var(--surface) 25%, #efe9da 37%, var(--surface) 63%); background-size: 400% 100%; border-radius: var(--r-sm); animation: sk 1.4s linear infinite; }
 @keyframes sk { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 .sk-stat { height: 116px; border-radius: var(--r-lg); }
 .sk-row { height: 56px; border-radius: var(--r); margin-bottom: .6rem; }

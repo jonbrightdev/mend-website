@@ -26,10 +26,10 @@ function PrivacyPage() {
       account={user ? { name: user.name, email: user.email } : undefined}
     >
       <div className="wrap page-head">
-        <p className="eyebrow">Legal</p>
-        <h1>Privacy Policy</h1>
-        <p className="lede">The short version: nothing leaves your device.</p>
-        <p className="page-meta">Effective date: {site.privacyEffectiveDate}</p>
+        <p className="eyebrow enter enter--1">Legal</p>
+        <h1 className="enter enter--2">Privacy Policy</h1>
+        <p className="lede enter enter--3">The short version: nothing leaves your device.</p>
+        <p className="page-meta enter enter--4">Effective date: {site.privacyEffectiveDate}</p>
       </div>
 
       <div className="wrap section--tight">
@@ -50,7 +50,7 @@ function PrivacyPage() {
           </p>
 
           <h2>What Mend collects</h2>
-          <div className="callout">
+          <div className="callout reveal">
             <p>
               <strong>Nothing, unless you turn on sync.</strong> By default Mend
               does not collect, transmit, sell, or share any data, and makes no

@@ -21,16 +21,16 @@ function HomePage() {
       <section className="hero" aria-labelledby="hero-h">
         <div className="wrap hero__grid">
           <div className="hero__copy">
-            <p className="eyebrow">Accessibility auditor for Chrome</p>
-            <h1 id="hero-h">
+            <p className="eyebrow enter enter--1">Accessibility auditor for Chrome</p>
+            <h1 id="hero-h" className="enter enter--2">
               Find what&apos;s broken on your page, and exactly how to fix it.
             </h1>
-            <p className="hero__sub">
+            <p className="hero__sub enter enter--3">
               A friendly accessibility auditor for Chrome that scans the active
               tab against WCAG and shows you what&apos;s wrong, where it lives,
               and how to fix it — in plain language.
             </p>
-            <div className="hero__cta">
+            <div className="hero__cta enter enter--4">
               <a className="btn btn--primary btn--lg" href={site.chromeStoreUrl}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <circle cx="12" cy="12" r="9.2" stroke="#fff" strokeWidth="1.8" />
@@ -51,7 +51,7 @@ function HomePage() {
                 View on GitHub
               </a>
             </div>
-            <p className="hero__note">
+            <p className="hero__note enter enter--5">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
                   d="M12 2.5 4 6v6c0 5 3.4 8 8 9.5 4.6-1.5 8-4.5 8-9.5V6l-8-3.5Z"
@@ -71,7 +71,7 @@ function HomePage() {
             </p>
           </div>
 
-          <div className="hero__art">
+          <div className="hero__art enter enter--2">
             <div className="hero__art-inner">
               <Pip
                 className="pip hero__pip"
@@ -117,14 +117,14 @@ function HomePage() {
       {/* DIFFERENTIATORS */}
       <section className="section" aria-labelledby="diff-h">
         <div className="wrap">
-          <p className="eyebrow">Why Mend</p>
-          <h2 id="diff-h">What makes Mend different</h2>
-          <p className="lede">
+          <p className="eyebrow reveal">Why Mend</p>
+          <h2 id="diff-h" className="reveal">What makes Mend different</h2>
+          <p className="lede reveal">
             Most scanners hand you a wall of jargon. Mend hands you the fix.
           </p>
 
-          <div className="feature-grid" style={{ marginTop: "2rem" }}>
-            <div className="feature">
+          <div className="feature-grid reveal-group" style={{ marginTop: "2rem" }}>
+            <div className="feature reveal">
               <span className="feature__num" aria-hidden="true">1</span>
               <h3>The fix comes first</h3>
               <p>
@@ -132,7 +132,7 @@ function HomePage() {
                 explanation is there if you want it, underneath.
               </p>
             </div>
-            <div className="feature">
+            <div className="feature reveal">
               <span className="feature__num" aria-hidden="true">2</span>
               <h3>Plain-language docs, written by hand</h3>
               <p>
@@ -150,7 +150,7 @@ function HomePage() {
                 </div>
               </div>
             </div>
-            <div className="feature">
+            <div className="feature reveal">
               <span className="feature__num" aria-hidden="true">3</span>
               <h3>Everything runs on your machine</h3>
               <p>
@@ -158,7 +158,7 @@ function HomePage() {
                 results never leave the browser.
               </p>
             </div>
-            <div className="feature">
+            <div className="feature reveal">
               <span className="feature__num" aria-hidden="true">4</span>
               <h3>It passes its own audit</h3>
               <p>We hold the panel to the same standard it checks for.</p>
@@ -189,14 +189,14 @@ function HomePage() {
         style={{ background: "var(--surface)", borderBlock: "1px solid var(--border)" }}
       >
         <div className="wrap">
-          <p className="eyebrow">How it works</p>
-          <h2 id="how-h">Three steps, then a to-do list</h2>
+          <p className="eyebrow reveal">How it works</p>
+          <h2 id="how-h" className="reveal">Three steps, then a to-do list</h2>
 
           <ol
-            className="steps"
+            className="steps reveal-group"
             style={{ marginTop: "2rem", listStyle: "none", padding: 0 }}
           >
-            <li className="step">
+            <li className="step reveal">
               <span className="step__n">Step 01</span>
               <h3>Open the side panel</h3>
               <p>
@@ -212,7 +212,7 @@ function HomePage() {
                 </span>
               </div>
             </li>
-            <li className="step">
+            <li className="step reveal">
               <span className="step__n">Step 02</span>
               <h3>Click Run audit</h3>
               <p>
@@ -225,7 +225,7 @@ function HomePage() {
                 </span>
               </div>
             </li>
-            <li className="step">
+            <li className="step reveal">
               <span className="step__n">Step 03</span>
               <h3>Get a fix for each issue</h3>
               <p>

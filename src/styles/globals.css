@@ -52,6 +52,10 @@
   /* Motion */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);      /* entrances, exits, transforms */
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);  /* moving/morphing on screen */
+  --dur-fast:  160ms;  /* press feedback, high-frequency UI */
+  --dur-ui:    250ms;  /* UI state changes — stays under the 300ms UI budget */
+  --dur-entry: 520ms;  /* marketing entrances — deliberately outside the UI budget */
+  --rise:      24px;   /* entrance travel distance */
 
   /* Layout */
   --maxw: 1120px;
@@ -146,6 +150,49 @@ code, kbd, pre { font-family: var(--font-mono); }
     animation-duration: .001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .001ms !important;
+  }
+}
+
+/* ---- Entrance & scroll-reveal primitives -------------------------- */
+/*
+   Motion here is strictly additive. Every rule lives inside
+   @media (prefers-reduced-motion: no-preference), so reduced-motion users never
+   get an opacity:0 resting state at all. Scroll reveal is additionally gated on
+   @supports (animation-timeline: view()): browsers without scroll-driven
+   animation render the content as-is, so no failure mode can ever hide content.
+*/
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(var(--rise)) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* On-load entrance — for above-the-fold elements only. */
+  .enter { animation: rise-in var(--dur-entry) var(--ease-out) both; }
+  .enter--1 { animation-delay:   0ms; }
+  .enter--2 { animation-delay:  80ms; }
+  .enter--3 { animation-delay: 160ms; }
+  .enter--4 { animation-delay: 240ms; }
+  .enter--5 { animation-delay: 320ms; }
+
+  /* Scroll reveal — for below-the-fold elements.
+     Timing function is linear on purpose: the animation is scrubbed by scroll
+     position, so the scroll itself supplies the pacing. An ease here would
+     fight the user's finger. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: rise-in linear both;
+      animation-timeline: view();
+      animation-range: entry 15% cover 30%;
+    }
+
+    /* Stagger, scroll-driven style. Scroll-timeline animations ignore
+       animation-delay (there is no wall clock to delay against), so the stagger
+       is expressed as progressively later end-points in the scroll range.
+       ~6% of cover per step ≈ the 80ms feel of a time-based stagger. */
+    .reveal-group > .reveal:nth-child(2) { animation-range: entry 15% cover 36%; }
+    .reveal-group > .reveal:nth-child(3) { animation-range: entry 15% cover 42%; }
+    .reveal-group > .reveal:nth-child(4) { animation-range: entry 15% cover 48%; }
   }
 }
 
@@ -406,6 +453,19 @@ code, kbd, pre { font-family: var(--font-mono); }
     to   { transform: translateY(-6px); }
   }
 }
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__art-inner {
+      animation: hero-parallax linear both;
+      animation-timeline: scroll(root block);
+      animation-range: 0 70vh;
+    }
+    @keyframes hero-parallax {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-32px); }
+    }
+  }
+}
 .panel-mock__bar {
   display: flex; align-items: center; gap: .5rem;
   padding: .7rem .9rem;
@@ -435,6 +495,19 @@ code, kbd, pre { font-family: var(--font-mono); }
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.1rem;
+}
+
+/* .feature-grid is 2-up at ≥720px, so cards 3–4 form a second row. The shared
+   .reveal-group stagger (plan 016) assumes one row and would compound row two's
+   already-later viewport entry into a visible lag. Restart the stagger per row.
+   Below 720px the grid is 1-up, where the shared 1→4 stagger is correct. */
+@media (min-width: 720px) {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .feature-grid > .reveal:nth-child(3) { animation-range: entry 15% cover 30%; }
+      .feature-grid > .reveal:nth-child(4) { animation-range: entry 15% cover 36%; }
+    }
+  }
 }
 .feature {
   background: var(--raised);
@@ -471,6 +544,30 @@ code, kbd, pre { font-family: var(--font-mono); }
 .codeflip__row--before { background: #fbeeea; color: #7a2417; }
 .codeflip__row--after  { background: var(--pass-bg); color: var(--pass-text); }
 .codeflip__tag { font-weight: 700; flex: none; }
+
+/* The "After" row wipes in left-to-right as the card enters view: the fix
+   arriving, rather than two rows that were always there.
+   clip-path is used, not width/height — it composites and never reflows the
+   row (the row keeps its layout box at all times, so the block's height is
+   stable and nothing below it jumps).
+   Scroll-driven and one-shot by design: an auto-playing loop here would be a
+   WCAG 2.2.2 (Pause, Stop, Hide) failure — moving content that starts
+   automatically and runs past 5s needs a pause control, and aria-hidden does
+   not exempt visual motion. On the page that advertises "It passes its own
+   audit", that is not a trade worth making. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .codeflip__row--after {
+      animation: codeflip-wipe linear both;
+      animation-timeline: view();
+      animation-range: entry 50% entry 100%;
+    }
+    @keyframes codeflip-wipe {
+      from { clip-path: inset(0 100% 0 0); }
+      to   { clip-path: inset(0 0 0 0); }
+    }
+  }
+}
 
 /* How it works */
 .steps {
