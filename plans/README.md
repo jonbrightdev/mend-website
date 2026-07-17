@@ -19,7 +19,7 @@ Each plan is self-contained — an executor needs no other context. Read the pla
 | 006 | [Give the API key reveal an entrance](006-api-key-reveal-entrance.md) | — | S | 001 | DONE |
 | 007 | [Fade the dashboard in over its skeleton](007-dashboard-loaded-fade.md) | — | S | 001 | DONE |
 | 008 | [Make the hero's floating panel float](008-hero-panel-drift.md) | — | S | — | DONE |
-| 009 | [Establish a test suite (Vitest) and CI](009-test-and-ci-baseline.md) | P1 | M | — | BLOCKED — steps 1–3, 5 done; PGlite harness needs `drizzle/` regenerated (stale: missing audit/apiKey/violation) |
+| 009 | [Establish a test suite (Vitest) and CI](009-test-and-ci-baseline.md) | P1 | M | — | DONE |
 | 010 | [Make ingest write audit + violations atomically](010-transactional-ingest.md) | P1 | S | 009 | TODO |
 | 011 | [Cap ingest payload sizes, timestamps, and keys per user](011-ingest-abuse-limits.md) | P1 | S | 009, 010 | TODO |
 | 013 | [Replace the dead "Forgot password?" link with a working reset flow](013-password-reset.md) | P1 | M | — | TODO |
@@ -32,6 +32,13 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 ## Dependency notes
 
 - **009 first.** It creates the Vitest setup, the in-memory PGlite test harness (`src/test/db.ts`), and CI that every later plan's test plan relies on. It also extracts ingest parsing into `src/lib/ingest-payload.ts`, which 011 edits.
+- **009 also fixed a stale `drizzle/`.** The tracked migrations only covered the
+  four Better Auth tables; `audit`, `apiKey` and `violation` had only ever been
+  created via `db:push`, so they existed in no migration. Since `railway.json`
+  runs `pnpm db:migrate` as its pre-deploy command, a deploy would have built an
+  incomplete schema. `0001_public_slapstick.sql` closes the gap. Use
+  `pnpm db:generate` — not `db:push` — for schema changes from here (012 depends
+  on this).
 - **010 before 011** — both edit the ingest handler; 011's validation slots in ahead of 010's transaction.
 - **013 and 014 are independent** of the rest (and of each other), but both touch `src/lib/auth.ts` — expect a trivial rebase if run in parallel.
 - **012 before 015** — the query rewrite assumes the `violation_audit_idx` index exists.
