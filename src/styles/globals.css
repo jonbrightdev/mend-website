@@ -296,6 +296,26 @@ code, kbd, pre { font-family: var(--font-mono); }
   background: var(--accent-soft);
 }
 
+/* On narrow screens the nav can't share the row with the brand without the
+   pills overflowing, so drop it onto its own full-width line below the brand.
+   Kept CSS-only: the header stays a no-JS server component. */
+@media (max-width: 640px) {
+  .site-header__inner {
+    flex-wrap: wrap;
+    min-height: 0;
+    padding-block: .55rem;
+  }
+  .site-nav {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    gap: .2rem .1rem;
+    padding-top: .45rem;
+    border-top: 1px solid var(--border);
+  }
+  .site-nav a { padding-inline: .6rem; }
+}
+
 /* ---- Buttons ------------------------------------------------------ */
 .btn {
   display: inline-flex;

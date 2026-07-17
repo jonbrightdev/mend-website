@@ -44,8 +44,12 @@
   gap: clamp(2rem, 5vw, 3.5rem);
   align-items: center;
 }
+/* Single-column (mobile): lead with the form, not the pitch, so the box the
+   user came for is at the top. Reset to source order once the columns split. */
+.auth__grid > .auth-card { order: -1; }
 @media (min-width: 880px) {
   .auth__grid { grid-template-columns: 1.02fr .98fr; }
+  .auth__grid > .auth-card { order: 0; }
 }
 
 /* Value panel */
@@ -352,6 +356,21 @@
 .panel__head .hint { color: var(--muted); font-size: .9rem; }
 .panel__body { padding: 1.1rem 1.3rem 1.3rem; }
 .panel__body--flush { padding: 0; }
+
+/* Danger zone (account deletion). A destructive-outline button, plus a little
+   room between the armed actions and their inline password field. */
+.panel--danger { border-color: color-mix(in srgb, var(--sev-critical) 40%, var(--border)); }
+.btn--danger {
+  background: transparent;
+  color: var(--sev-critical);
+  border-color: color-mix(in srgb, var(--sev-critical) 45%, transparent);
+}
+.btn--danger:hover { border-color: var(--sev-critical); background: color-mix(in srgb, var(--sev-critical) 8%, transparent); }
+.danger-action { margin: 1.2rem 0 0; }
+.danger-action + .danger-action { border-top: 1px solid var(--border); padding-top: 1.2rem; }
+.danger-action h3 { margin: 0 0 .3rem; font-size: 1.05rem; }
+.danger-action p { margin: 0 0 .7rem; color: var(--muted); max-width: 60ch; }
+.danger-action__row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 
 /* ---- Data table --------------------------------------------------- */
 .table-scroll { overflow-x: auto; }
