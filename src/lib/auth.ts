@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { sendMail } from "@/lib/mailer";
 
 // Google is added only when both credentials are present; magic link only when
 // explicitly enabled. Email + password is always available. This keeps the
@@ -16,7 +17,19 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  emailAndPassword: { enabled: true },
+  emailAndPassword: {
+    enabled: true,
+    // `url` points at Better Auth's own /reset-password/:token endpoint, which
+    // validates the token and then redirects to the requested callback with it
+    // in the query string — so the user lands on our /reset-password page.
+    sendResetPassword: async ({ user, url }) => {
+      await sendMail({
+        to: user.email,
+        subject: "Reset your Mend password",
+        text: `Someone requested a password reset for your Mend account.\n\nReset it here (link expires in 1 hour):\n${url}\n\nIf this wasn't you, you can ignore this email.`,
+      });
+    },
+  },
   ...(googleEnabled
     ? {
         socialProviders: {
@@ -30,11 +43,15 @@ export const auth = betterAuth({
   plugins: magicLinkEnabled
     ? [
         magicLink({
+          // The dev fallback (logging the link) now lives in the mailer, so
+          // this works locally with no email service and in production once
+          // RESEND_API_KEY/EMAIL_FROM are set.
           sendMagicLink: async ({ email, url }) => {
-            // TODO: wire a real email provider (Resend/Postmark/SMTP) before
-            // enabling this in production. Dev fallback logs the link so it can
-            // be exercised locally without an email service.
-            console.log(`[magic-link] ${email}: ${url}`);
+            await sendMail({
+              to: email,
+              subject: "Your Mend sign-in link",
+              text: `Sign in to Mend (link expires in 15 minutes):\n${url}\n\nIf you didn't request this, you can ignore this email.`,
+            });
           },
         }),
       ]

@@ -128,8 +128,7 @@ export function LoginForm() {
         <div className="field">
           <div className="field__row">
             <label htmlFor="password">Password</label>
-            {/* Password reset is wired alongside the email provider (see notes). */}
-            <a href="#0">Forgot password?</a>
+            <Link to="/forgot-password">Forgot password?</Link>
           </div>
           <div className="pw-wrap">
             <input
