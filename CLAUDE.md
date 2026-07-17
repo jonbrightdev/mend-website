@@ -11,6 +11,17 @@ added merge overhead. `main` is the single source of truth.
 Because `main` deploys, keep it releasable: run the checks below before pushing,
 and push work that is finished rather than parked half-done.
 
+## Node version: use 24
+
+Run `nvm use` in the repo — `.nvmrc` pins Node 24, which is what CI installs.
+
+Older Node will fail in a way that doesn't name the real problem. On Node 20,
+`pnpm install` dies with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` from inside
+corepack: Node 20 bundles corepack 0.23, which loads `pnpm.cjs` without a
+dynamic-import callback, and pnpm 11 calls `import()` immediately. It crashes
+before pnpm can read `engines`, so the error never mentions the Node version.
+Node 25 doesn't bundle corepack at all. Stay on 24.
+
 ## Checks before pushing
 
 Run what CI runs (`.github/workflows/ci.yml`) — all four must pass:
