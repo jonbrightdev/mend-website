@@ -21,8 +21,28 @@ Node 24 is the active LTS — prefer it over the newest release. Node 25 and 26 
 Current, not LTS, and no longer bundle corepack, so the `packageManager` pin
 stops being honoured the way it is here.
 
-pnpm's version comes from `packageManager` in package.json — bump it there, not
-by installing pnpm globally, so every machine and CI agree.
+## pnpm stays on 10.x — do not "upgrade" it to 11
+
+`packageManager` pins `pnpm@10.34.5` (the latest 10.x) on purpose. **Leave it
+there.** Railway's Nixpacks builder ships a corepack, from its pinned nixpkgs
+archive, that loads `bin/pnpm.cjs` without a dynamic-import callback. Every
+pnpm 11.x release opens with `import('./pnpm.mjs')`, so the deploy dies with
+`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` at *any* 11.x patch level — it is not
+a bug that a newer 11.x fixes. pnpm 10's shim is a plain `require()`.
+
+This is the same failure mode as Node 20 locally, in a different place.
+
+GitHub Actions will not catch a bad bump: it installs pnpm via
+`pnpm/action-setup`, not through Nixpacks' corepack, so CI goes green while the
+Railway deploy breaks. 10.34.5 reads `lockfileVersion: '9.0'`, which is what
+both 10.x and 11.x write, so the lockfile is not the constraint.
+
+Moving to pnpm 11 means changing how Railway builds (bypassing its corepack —
+e.g. a Dockerfile or an explicit pnpm install in the build command), not
+changing this field.
+
+pnpm's version comes from `packageManager` — bump it there, not by installing
+pnpm globally, so every machine and CI agree.
 
 Older Node fails in a way that doesn't name the real problem. On Node 20,
 `pnpm install` dies with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` from inside
