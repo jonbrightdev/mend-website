@@ -5,21 +5,24 @@ Three audit generations share this directory, with monotonic numbering:
 - **001–008** — an `improve-animations` audit at commit `b5deaa1` (2026-07-16). All landed in commit `dbd4669`.
 - **009–015** — an `improve` (general) audit at commit `dbd4669` (2026-07-16).
 - **016–022** — a second `improve-animations` audit at commit `88d2ab8` (2026-07-17), this one **additive**. The 001–008 generation was corrective: it fixed motion that already existed, and re-checking it at `88d2ab8` found its work intact and almost nothing left to correct. But a corrective audit can only ever fix what is already animating — it never asks what *should* animate. This generation answers that. The home page had exactly one animation (the hero panel's drift); no page revealed anything on scroll.
+- **023–027** — planned at commit `cb1bec2` (2026-07-17), not from a fresh audit: these are the five "Direction ideas surfaced but not planned" from the 009–015 generation, promoted to full plans now that everything they waited on has landed.
 
 Each plan is self-contained — an executor needs no other context. Read the plan fully before starting, honor its STOP conditions, and update your status row when done.
 
 ## Execution order & status
 
-Completed plans are removed once done. **All planned work across the three audit
-generations (001–022) is now complete** — there are no open plans. The
-generations and their landed work are still summarised above and in the notes
-below for context, and the last three to land were:
+Completed plans are removed once done. Generations 001–022 are fully landed;
+the last three were 012 (indexed `violation.auditId`, migration
+`0002_nostalgic_bruce_banner.sql`), 014 (account-page danger zone + retention
+story), and 015 (the `getDashboardData` rewrite).
 
-- **012** — indexed `violation.auditId` (migration `0002_nostalgic_bruce_banner.sql`).
-- **014** — account-page danger zone: delete all synced audits, or the whole
-  account (Better Auth `deleteUser`), plus the privacy-policy retention story.
-- **015** — rewrote `getDashboardData` to load only run skeletons, SQL-side
-  per-run totals, and the latest run's violations (not every payload).
+| Plan | Title | Priority | Effort | Status |
+|------|-------|----------|--------|--------|
+| [023](023-email-verification.md) | Send verification emails on signup | P2 | S | TODO |
+| [024](024-ingest-rate-limit.md) | Rate-limit /api/ingest per user | P1 | M | TODO |
+| [025](025-data-export.md) | Account data export as JSON | P2 | M | TODO |
+| [026](026-rule-catalogue-expansion.md) | Expand the rule catalogue (+15 rules) | P3 | M | TODO |
+| [027](027-ingest-contract.md) | Pin the ingest contract with shared fixtures | P3 | M | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -37,6 +40,21 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - **013 and 014 are independent** of the rest (and of each other), but both touch `src/lib/auth.ts` — expect a trivial rebase if run in parallel.
 - **012 before 015** — the query rewrite assumes the `violation_audit_idx` index exists.
 - 012 is safe to run at any point (schema + generated migration only).
+
+### Direction generation (023–027)
+
+- **All five are independent** — any order works. Suggested: 024 first (the
+  only P1 — it closes the last acknowledged security gap), then 023 and 025
+  (small user-facing wins), then 026 and 027.
+- **024 before 027 is mildly preferable**: 027 documents the ingest response
+  table, and 024 adds a 429 row to it. 027 run first must note the pending
+  429 (its own maintenance notes cover this).
+- **027 is the only cross-repo plan** — it also edits `../mend-a11y`
+  (test files and its `test:unit` script only). It requires a clean working
+  tree in both repos and does **not** push the extension repo.
+- 023 and nothing else touches `src/lib/auth.ts`; 024 and nothing else
+  touches the ingest route; 025 and nothing else touches `AccountClient.tsx`
+  — no rebase risk between any pair.
 
 ### Animation generation (016–022)
 
@@ -103,15 +121,10 @@ Landed after the audit (2026-07-17), so nobody reverts them:
 
 ## Direction ideas surfaced but not planned
 
-- **Rate limiting `/api/ingest`** (requests/minute), deferred out of plan 011 on
-  purpose: it needs an infra decision, not code. Single node → an in-process
-  limiter is fine; serverless → it needs a shared store. 011's caps bound the
-  size of any one request, not their frequency, so this is the remaining gap.
-- Wire email verification now that plan 013's mailer has landed
-  (`src/lib/mailer.ts` is the single email seam; add
-  `emailVerification.sendVerificationEmail` in `src/lib/auth.ts`). Magic link's
-  sender is already switched to the mailer, so enabling it in production is now
-  just `VITE_AUTH_MAGIC_LINK=true` plus `RESEND_API_KEY`/`EMAIL_FROM`.
-- Expand the hand-written rule catalogue in `src/lib/dashboard-data.ts` (13 rules today; unknown rules fall back to generic copy on the details page).
-- Share the ingest payload contract with the extension repo (`../mend-a11y`) as a versioned schema to prevent drift.
-- GDPR-style data export ("download my audits as JSON") pairing with plan 014's danger zone.
+All five ideas this section used to hold became plans 023–027 on 2026-07-17:
+rate limiting → 024, email verification → 023, rule catalogue → 026, shared
+ingest contract → 027, data export → 025. Nothing is currently parked here.
+One decision from that promotion worth keeping visible: the rate-limit infra
+question ("single node or shared store?") was resolved as **single node,
+in-process** — `railway.json` runs one service; 024 documents when that
+choice must be revisited.
