@@ -17,10 +17,15 @@ Run what CI runs (`.github/workflows/ci.yml`) — all four must pass:
 
 ```
 pnpm install --frozen-lockfile
+pnpm generate-routes
 pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+`pnpm generate-routes` matters on a fresh checkout: `src/routeTree.gen.ts` is
+gitignored, and `typecheck` fails without it. Locally it usually already exists,
+which means typecheck can pass on your machine and still fail in CI.
 
 ## Database schema changes
 
