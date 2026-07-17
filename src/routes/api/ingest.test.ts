@@ -129,6 +129,30 @@ describe("POST /api/ingest", () => {
     expect(runs).toHaveLength(1);
   });
 
+  it("rejects a body over 1 MiB before parsing it", async () => {
+    // Oversized via one huge field, so it is the body gate that trips rather
+    // than any per-field cap in the parser.
+    const res = await post({
+      request: request(payload({ pageTitle: "x".repeat(1_000_001) })),
+    });
+
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "Payload too large" });
+  });
+
+  it("still rejects a non-JSON body as a 400", async () => {
+    const res = await post({
+      request: new Request("http://localhost/api/ingest", {
+        method: "POST",
+        headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" },
+        body: "not json",
+      }),
+    });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Body must be JSON" });
+  });
+
   // The fix leans on the driver rolling a failed transaction back. If PGlite
   // ever stopped doing that, the handler could still half-write a run, so this
   // asserts the guarantee itself rather than the handler.

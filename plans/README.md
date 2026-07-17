@@ -22,7 +22,7 @@ Each plan is self-contained — an executor needs no other context. Read the pla
 | 008 | [Make the hero's floating panel float](008-hero-panel-drift.md) | — | S | — | DONE |
 | 009 | [Establish a test suite (Vitest) and CI](009-test-and-ci-baseline.md) | P1 | M | — | DONE |
 | 010 | [Make ingest write audit + violations atomically](010-transactional-ingest.md) | P1 | S | 009 | DONE |
-| 011 | [Cap ingest payload sizes, timestamps, and keys per user](011-ingest-abuse-limits.md) | P1 | S | 009, 010 | TODO |
+| 011 | [Cap ingest payload sizes, timestamps, and keys per user](011-ingest-abuse-limits.md) | P1 | S | 009, 010 | DONE |
 | 013 | [Replace the dead "Forgot password?" link with a working reset flow](013-password-reset.md) | P1 | M | — | TODO |
 | 012 | [Index `violation.auditId`](012-violation-auditid-index.md) | P2 | S | — | TODO |
 | 014 | [Let users delete their synced audits and their account](014-data-deletion.md) | P2 | M | — | TODO |
@@ -117,6 +117,10 @@ Landed after the audit (2026-07-17), so nobody reverts them:
 
 ## Direction ideas surfaced but not planned
 
+- **Rate limiting `/api/ingest`** (requests/minute), deferred out of plan 011 on
+  purpose: it needs an infra decision, not code. Single node → an in-process
+  limiter is fine; serverless → it needs a shared store. 011's caps bound the
+  size of any one request, not their frequency, so this is the remaining gap.
 - Wire email verification once plan 013's mailer lands (one config block).
 - Expand the hand-written rule catalogue in `src/lib/dashboard-data.ts` (13 rules today; unknown rules fall back to generic copy on the details page).
 - Share the ingest payload contract with the extension repo (`../mend-a11y`) as a versioned schema to prevent drift.

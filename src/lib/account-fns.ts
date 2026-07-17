@@ -36,6 +36,18 @@ async function listKeysFor(userId: string): Promise<ApiKeyRow[]> {
   }));
 }
 
+// A leaked key is the blast radius here, and nobody legitimately runs 20
+// extensions. Counts active keys only, so revoking frees a slot. Exported so
+// the quota is testable without invoking the createServerFn wrapper.
+export const MAX_ACTIVE_KEYS = 20;
+
+export async function assertKeyQuota(userId: string): Promise<void> {
+  const active = (await listKeysFor(userId)).filter((k) => !k.revokedAt);
+  if (active.length >= MAX_ACTIVE_KEYS) {
+    throw new Error("Key limit reached. Revoke an unused key first.");
+  }
+}
+
 export const fetchAccount = createServerFn({ method: "GET" }).handler(
   async () => {
     const user = await currentSessionUser();
@@ -52,6 +64,7 @@ export const createApiKey = createServerFn({ method: "POST" })
   .handler(async ({ data: name }) => {
     const user = await currentSessionUser();
     if (!user) throw redirect({ to: "/login" });
+    await assertKeyQuota(user.id);
     const key = generateKey();
     await db.insert(apiKey).values({
       id: crypto.randomUUID(),

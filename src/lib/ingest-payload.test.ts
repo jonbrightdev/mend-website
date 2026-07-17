@@ -127,6 +127,128 @@ describe("parsePayload", () => {
   });
 });
 
+// Identifiers reject and content truncates — get that backwards and an audit is
+// either silently dropped or silently mis-attributed. Each case names which.
+describe("parsePayload limits", () => {
+  const long = (n: number) => "x".repeat(n);
+
+  it("rejects a url over 2000 chars", () => {
+    expect(() => parsePayload(payload({ url: `https://example.com/${long(2_000)}` }))).toThrow(
+      "url is too long",
+    );
+  });
+
+  it("rejects more than 1000 issues", () => {
+    const issues = Array.from({ length: 1_001 }, () => issue());
+
+    expect(() => parsePayload(payload({ issues }))).toThrow(IngestError);
+    expect(() => parsePayload(payload({ issues }))).toThrow("too many issues (max 1000)");
+  });
+
+  it("accepts exactly 1000 issues", () => {
+    const issues = Array.from({ length: 1_000 }, () => issue());
+
+    expect(parsePayload(payload({ issues })).issues).toHaveLength(1_000);
+  });
+
+  it("rejects a ruleId over 200 chars", () => {
+    expect(() => parsePayload(payload({ issues: [issue({ ruleId: long(201) })] }))).toThrow(
+      "issues[0].ruleId is too long",
+    );
+  });
+
+  it("truncates html to 5000 chars rather than dropping the audit", () => {
+    const result = parsePayload(payload({ issues: [issue({ html: long(10_000) })] }));
+
+    expect(result.issues[0]!.html).toHaveLength(5_000);
+  });
+
+  it("truncates title, description, selector and failureSummary", () => {
+    const result = parsePayload(
+      payload({
+        issues: [
+          issue({
+            title: long(1_000),
+            description: long(5_000),
+            selector: long(5_000),
+            failureSummary: long(10_000),
+            category: long(500),
+          }),
+        ],
+      }),
+    );
+
+    expect(result.issues[0]!.title).toHaveLength(500);
+    expect(result.issues[0]!.description).toHaveLength(2_000);
+    expect(result.issues[0]!.selector).toHaveLength(2_000);
+    expect(result.issues[0]!.failureSummary).toHaveLength(5_000);
+    expect(result.issues[0]!.category).toHaveLength(200);
+  });
+
+  it("truncates a pageTitle over 500 chars", () => {
+    const result = parsePayload(payload({ pageTitle: long(1_000) }));
+
+    expect(result.pageTitle).toHaveLength(500);
+  });
+
+  it("drops an oversized helpUrl instead of storing a truncated, broken link", () => {
+    const result = parsePayload(payload({ issues: [issue({ helpUrl: long(5_000) })] }));
+
+    expect(result.issues[0]!.helpUrl).toBeUndefined();
+  });
+
+  it("rejects a startedAt more than a day in the future", () => {
+    expect(() => parsePayload(payload({ startedAt: Date.now() + 2 * 86_400_000 }))).toThrow(
+      "startedAt is in the future",
+    );
+  });
+
+  it("accepts a startedAt slightly in the future, for clock skew", () => {
+    const startedAt = Date.now() + 60_000;
+
+    expect(parsePayload(payload({ startedAt })).scannedAt).toEqual(new Date(startedAt));
+  });
+
+  it("rejects a startedAt from before the extension existed", () => {
+    expect(() => parsePayload(payload({ startedAt: Date.UTC(2019, 0, 1) }))).toThrow(
+      "startedAt is unreasonably old",
+    );
+  });
+
+  it("keeps only the first 25 wcag entries", () => {
+    const wcag = Array.from({ length: 30 }, (_, i) => `1.1.${i}`);
+    const result = parsePayload(payload({ issues: [issue({ wcag })] }));
+
+    expect(result.issues[0]!.wcag).toHaveLength(25);
+    expect(result.issues[0]!.wcag[0]).toBe("1.1.0");
+  });
+
+  it("filters out wcag entries over 200 chars", () => {
+    const result = parsePayload(payload({ issues: [issue({ wcag: ["1.1.1", long(201)] })] }));
+
+    expect(result.issues[0]!.wcag).toEqual(["1.1.1"]);
+  });
+
+  it.each([
+    ["out-of-range", 5e9],
+    ["negative", -1],
+    ["infinite", Infinity],
+  ])("drops a %s durationMs and totalChecks", (_label, value) => {
+    const result = parsePayload(payload({ durationMs: value, totalChecks: value }));
+
+    expect(result.durationMs).toBeUndefined();
+    expect(result.totalChecks).toBeUndefined();
+  });
+
+  it("falls back to the array index for an out-of-range domOrder", () => {
+    const result = parsePayload(
+      payload({ issues: [issue({ domOrder: -5 }), issue({ domOrder: 1e9 })] }),
+    );
+
+    expect(result.issues.map((i) => i.domOrder)).toEqual([0, 1]);
+  });
+});
+
 describe("groupViolations", () => {
   // groupViolations consumes parsed issues, so build them through parsePayload
   // rather than hand-rolling the IngestIssue shape.

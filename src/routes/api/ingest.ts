@@ -22,6 +22,11 @@ import type { IngestPayload } from "@/lib/ingest-payload";
 // bearer key, never a cookie, and the browser refuses to pair a wildcard with
 // credentialed requests anyway.
 
+// Roughly 1 MiB, measured in UTF-16 units rather than bytes — close enough for
+// a backstop that no real payload approaches. The extension's largest plausible
+// run (1000 issues, html clipped to 500 chars) is an order of magnitude under.
+const MAX_BODY_BYTES = 1_000_000;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -79,9 +84,14 @@ export const Route = createFileRoute("/api/ingest")({
           return json({ error: "Unauthorized" }, 401);
         }
 
+        const text = await request.text();
+        if (text.length > MAX_BODY_BYTES) {
+          return json({ error: "Payload too large" }, 413);
+        }
+
         let body: unknown;
         try {
-          body = await request.json();
+          body = JSON.parse(text);
         } catch {
           return json({ error: "Body must be JSON" }, 400);
         }
