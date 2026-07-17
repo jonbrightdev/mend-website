@@ -11,7 +11,7 @@ export const Route = createFileRoute("/privacy")({
       {
         name: "description",
         content:
-          "What Mend does and does not do with your information. Short version: nothing leaves your device.",
+          "What Mend does and does not do with your information. Short version: nothing leaves your device unless you turn on sync — and you can delete synced data anytime.",
       },
     ],
   }),
@@ -28,7 +28,7 @@ function PrivacyPage() {
       <div className="wrap page-head">
         <p className="eyebrow enter enter--1">Legal</p>
         <h1 className="enter enter--2">Privacy Policy</h1>
-        <p className="lede enter enter--3">The short version: nothing leaves your device.</p>
+        <p className="lede enter enter--3">The short version: nothing leaves your device unless you say so.</p>
         <p className="page-meta enter enter--4">Effective date: {site.privacyEffectiveDate}</p>
       </div>
 
@@ -76,7 +76,10 @@ function PrivacyPage() {
             real page content. Nothing else is sent, and runs you don&apos;t save
             stay on your device. You can disconnect at any time by turning sync
             off in the extension and revoking the key from your account page,
-            which stops all further requests.
+            which stops all further requests. Audits you&apos;ve already saved
+            stay in your dashboard until you delete them: your account page lets
+            you delete all synced audits, or your entire account, at any time.
+            Deletion is immediate and permanent.
           </p>
 
           <h2>What Mend stores</h2>

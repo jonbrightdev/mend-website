@@ -2,8 +2,10 @@ import { useState } from "react";
 import {
   createApiKey,
   revokeApiKey,
+  deleteAllAudits,
   type ApiKeyRow,
 } from "@/lib/account-fns";
+import { authClient } from "@/lib/auth-client";
 
 // "Connect extension" panel. Generates an API key (shown once), lists existing
 // keys, and revokes them. The key is what the Mend extension pastes into its
@@ -56,6 +58,7 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
   }
 
   return (
+    <>
     <section className="panel" aria-labelledby="connect-h">
       <div className="panel__head">
         <h2 id="connect-h">Connect the Mend extension</h2>
@@ -151,6 +154,181 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
             ))}
           </ul>
         )}
+      </div>
+    </section>
+
+    <DangerZone />
+    </>
+  );
+}
+
+// The account page's destructive actions: delete all synced audits, or the
+// whole account. Each action arms on the first click (a second click confirms)
+// so there is no accidental one-tap deletion and no browser confirm() dialog.
+function DangerZone() {
+  const [armed, setArmed] = useState<null | "audits" | "account">(null);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [auditsDeleted, setAuditsDeleted] = useState(false);
+  const [password, setPassword] = useState("");
+
+  function disarm() {
+    setArmed(null);
+    setError(null);
+    setPassword("");
+  }
+
+  async function onDeleteAudits() {
+    setError(null);
+    setPending(true);
+    try {
+      await deleteAllAudits({ data: undefined });
+      setAuditsDeleted(true);
+      setArmed(null);
+    } catch {
+      setError("Couldn't delete your audits. Please try again.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onDeleteAccount() {
+    setError(null);
+    setPending(true);
+    try {
+      // Email+password accounts must re-verify with their password; on success
+      // Better Auth clears the session and the DB cascades remove the data.
+      const { error: authError } = await authClient.deleteUser({ password });
+      if (authError) {
+        setError(authError.message ?? "Couldn't delete your account.");
+        setPending(false);
+        return;
+      }
+      // Hard navigation so no stale authed UI lingers (matches SignOutButton).
+      window.location.href = "/";
+    } catch {
+      setError("Couldn't delete your account. Please try again.");
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="panel panel--danger" aria-labelledby="danger-h">
+      <div className="panel__head">
+        <h2 id="danger-h">Delete your data</h2>
+      </div>
+      <div className="panel__body">
+        <p className="muted" style={{ marginTop: 0, maxWidth: "60ch" }}>
+          Synced audits can include snippets of real page content. You can remove
+          them — or your whole account — at any time. Deletion is immediate and
+          permanent.
+        </p>
+
+        {error && (
+          <p role="alert" style={{ color: "var(--sev-critical)", fontWeight: 600 }}>
+            {error}
+          </p>
+        )}
+
+        <div className="danger-action">
+          <h3>Delete all synced audits</h3>
+          <p>
+            Removes every audit run saved to this dashboard, and the issue
+            snippets they contain. Your account and keys stay.
+          </p>
+          {auditsDeleted ? (
+            <p role="status" style={{ margin: 0, fontWeight: 600 }}>
+              All synced audits deleted.
+            </p>
+          ) : armed === "audits" ? (
+            <div className="danger-action__row">
+              <button
+                className="btn btn--danger"
+                type="button"
+                disabled={pending}
+                onClick={onDeleteAudits}
+              >
+                {pending ? "Deleting…" : "Click again to confirm"}
+              </button>
+              <button
+                className="btn btn--ghost"
+                type="button"
+                disabled={pending}
+                onClick={disarm}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn--danger"
+              type="button"
+              onClick={() => {
+                setError(null);
+                setArmed("audits");
+              }}
+            >
+              Delete all synced audits
+            </button>
+          )}
+        </div>
+
+        <div className="danger-action">
+          <h3>Delete account</h3>
+          <p>
+            Permanently deletes your account, keys, and all synced audits. This
+            can&apos;t be undone.
+          </p>
+          {armed === "account" ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onDeleteAccount();
+              }}
+            >
+              <div className="field" style={{ maxWidth: "22rem" }}>
+                <label htmlFor="delete-pw">Confirm your password</label>
+                <input
+                  id="delete-pw"
+                  className="input"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="danger-action__row" style={{ marginTop: ".7rem" }}>
+                <button
+                  className="btn btn--danger"
+                  type="submit"
+                  disabled={pending || password.length === 0}
+                >
+                  {pending ? "Deleting…" : "Permanently delete account"}
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  disabled={pending}
+                  onClick={disarm}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <button
+              className="btn btn--danger"
+              type="button"
+              onClick={() => {
+                setError(null);
+                setArmed("account");
+              }}
+            >
+              Delete account
+            </button>
+          )}
+        </div>
       </div>
     </section>
   );

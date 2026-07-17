@@ -5,6 +5,7 @@ import {
   boolean,
   integer,
   jsonb,
+  index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import type { Impact, ViolationNode } from "@/lib/dashboard-data";
@@ -105,16 +106,23 @@ export const apiKey = pgTable("apiKey", {
 // Issues grouped by rule within a run, mirroring the portal's Violation shape.
 // nodes holds the affected elements ({ target, html, failureSummary }); tags
 // holds the extension's category plus WCAG criteria numbers.
-export const violation = pgTable("violation", {
-  id: text("id").primaryKey(),
-  auditId: text("auditId")
-    .notNull()
-    .references(() => audit.id, { onDelete: "cascade" }),
-  ruleId: text("ruleId").notNull(),
-  impact: text("impact").$type<Impact>().notNull(),
-  help: text("help").notNull(),
-  helpUrl: text("helpUrl"),
-  description: text("description").notNull(),
-  tags: jsonb("tags").$type<string[]>().notNull().default([]),
-  nodes: jsonb("nodes").$type<ViolationNode[]>().notNull(),
-});
+export const violation = pgTable(
+  "violation",
+  {
+    id: text("id").primaryKey(),
+    auditId: text("auditId")
+      .notNull()
+      .references(() => audit.id, { onDelete: "cascade" }),
+    ruleId: text("ruleId").notNull(),
+    impact: text("impact").$type<Impact>().notNull(),
+    help: text("help").notNull(),
+    helpUrl: text("helpUrl"),
+    description: text("description").notNull(),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    nodes: jsonb("nodes").$type<ViolationNode[]>().notNull(),
+  },
+  // Every dashboard/detail query filters violations by auditId, and the cascade
+  // delete from audit resolves through it; Postgres doesn't index FK columns
+  // automatically.
+  (t) => [index("violation_audit_idx").on(t.auditId)],
+);

@@ -10,30 +10,16 @@ Each plan is self-contained — an executor needs no other context. Read the pla
 
 ## Execution order & status
 
-| Plan | Title | Priority | Effort | Depends on | Status |
-|------|-------|----------|--------|------------|--------|
-| 001 | [Add motion tokens to the design system](001-motion-tokens.md) | — | S | — | DONE |
-| 002 | [Fix the frozen spinner under prefers-reduced-motion](002-reduced-motion-spinner.md) | — | S | — | DONE |
-| 003 | [Remove the skip link's focus animation](003-skip-link-no-animation.md) | — | S | — | DONE |
-| 004 | [Gate button hover lift; add press feedback](004-button-hover-gate-press-feedback.md) | — | S | 001 | DONE |
-| 005 | [Animate the FAQ answer reveal](005-faq-details-reveal.md) | — | S | 001 | DONE |
-| 006 | [Give the API key reveal an entrance](006-api-key-reveal-entrance.md) | — | S | 001 | DONE |
-| 007 | [Fade the dashboard in over its skeleton](007-dashboard-loaded-fade.md) | — | S | 001 | DONE |
-| 008 | [Make the hero's floating panel float](008-hero-panel-drift.md) | — | S | — | DONE |
-| 009 | [Establish a test suite (Vitest) and CI](009-test-and-ci-baseline.md) | P1 | M | — | DONE |
-| 010 | [Make ingest write audit + violations atomically](010-transactional-ingest.md) | P1 | S | 009 | DONE |
-| 011 | [Cap ingest payload sizes, timestamps, and keys per user](011-ingest-abuse-limits.md) | P1 | S | 009, 010 | DONE |
-| 013 | [Replace the dead "Forgot password?" link with a working reset flow](013-password-reset.md) | P1 | M | — | DONE |
-| 012 | [Index `violation.auditId`](012-violation-auditid-index.md) | P2 | S | — | TODO |
-| 014 | [Let users delete their synced audits and their account](014-data-deletion.md) | P2 | M | — | TODO |
-| 015 | [Stop the dashboard loading every run's full violation payload](015-dashboard-query-scalability.md) | P3 | M | 009, 012 | TODO |
-| 016 | [Add entrance & scroll-reveal motion primitives](016-motion-primitives.md) | — | S | — | DONE |
-| 017 | [Stagger the home hero's entrance and drift its art on scroll](017-hero-entrance.md) | — | S | 016 | DONE |
-| 018 | [Reveal the home page's feature cards and steps on scroll](018-home-scroll-reveal.md) | — | S | 016 | DONE |
-| 019 | [Wipe the codeflip's "After" row in on scroll](019-codeflip-wipe.md) | — | S | 016 | DONE |
-| 020 | [Animate the support and privacy page entrances](020-marketing-prose-pages.md) | — | S | 016, 018 | DONE |
-| 021 | [Give the auth "Check your inbox" panel an entrance](021-auth-sent-transition.md) | — | S | 016 | DONE |
-| 022 | [Fade dashboard filter results in; fix the skeleton shimmer's easing](022-dashboard-filter-and-shimmer.md) | — | S | 016 | DONE |
+Completed plans are removed once done. **All planned work across the three audit
+generations (001–022) is now complete** — there are no open plans. The
+generations and their landed work are still summarised above and in the notes
+below for context, and the last three to land were:
+
+- **012** — indexed `violation.auditId` (migration `0002_nostalgic_bruce_banner.sql`).
+- **014** — account-page danger zone: delete all synced audits, or the whole
+  account (Better Auth `deleteUser`), plus the privacy-policy retention story.
+- **015** — rewrote `getDashboardData` to load only run skeletons, SQL-side
+  per-run totals, and the latest run's violations (not every payload).
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

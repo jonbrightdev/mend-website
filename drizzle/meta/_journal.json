@@ -15,6 +15,13 @@
       "when": 1784263716442,
       "tag": "0001_public_slapstick",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784317106211,
+      "tag": "0002_nostalgic_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

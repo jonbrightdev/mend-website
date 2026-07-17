@@ -4,12 +4,11 @@
    functions in src/lib/dashboard-fns.ts instead.
    ============================================================ */
 
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { audit, violation } from "@/db/schema";
 import type { AuditRecord, Violation } from "@/lib/dashboard-data";
 
-type AuditRow = typeof audit.$inferSelect;
 type ViolationRow = typeof violation.$inferSelect;
 
 // The trend chart shows at most this many runs along the x-axis.
@@ -27,10 +26,6 @@ function toViolation(row: ViolationRow): Violation {
   };
 }
 
-function nodeTotal(violations: ViolationRow[]): number {
-  return violations.reduce((sum, v) => sum + v.nodes.length, 0);
-}
-
 function dayOf(d: Date): string {
   const iso = d.toISOString();
   return iso.slice(0, 10); // YYYY-MM-DD
@@ -42,38 +37,67 @@ function dayOf(d: Date): string {
  * aligned to runDates (distinct run days, oldest first, capped at 8). Days
  * before a page's first run count 0; between runs the last total carries
  * forward.
+ *
+ * Only lightweight data is loaded: run skeletons (no violation payloads),
+ * per-run node totals summed in SQL for the history line, and the full
+ * violation rows for just the latest run of each URL — the only runs the
+ * dashboard shows issue detail for.
  */
 export async function getDashboardData(
   userId: string,
 ): Promise<{ audits: AuditRecord[]; runDates: string[] }> {
+  // Run skeletons only — these rows are small; the weight was the nodes payload.
   const runs = await db
-    .select()
+    .select({
+      id: audit.id,
+      url: audit.url,
+      pageTitle: audit.pageTitle,
+      scannedAt: audit.scannedAt,
+    })
     .from(audit)
     .where(eq(audit.userId, userId))
     .orderBy(asc(audit.scannedAt));
   if (runs.length === 0) return { audits: [], runDates: [] };
 
-  const violationRows = await db
-    .select()
+  // Per-run node totals for history, summed SQL-side so the nodes payloads are
+  // never loaded just to be counted. Joined on audit to scope to the owner
+  // without shipping every run id back in the query.
+  const totals = await db
+    .select({
+      auditId: violation.auditId,
+      total: sql<number>`sum(jsonb_array_length(${violation.nodes}))`.mapWith(Number),
+    })
     .from(violation)
-    .where(inArray(violation.auditId, runs.map((r) => r.id)));
-
-  const byAudit = new Map<string, ViolationRow[]>();
-  for (const v of violationRows) {
-    const list = byAudit.get(v.auditId) ?? [];
-    list.push(v);
-    byAudit.set(v.auditId, list);
-  }
+    .innerJoin(audit, eq(violation.auditId, audit.id))
+    .where(eq(audit.userId, userId))
+    .groupBy(violation.auditId);
+  // Runs absent from the result have no violations → total 0.
+  const totalByAudit = new Map(totals.map((t) => [t.auditId, t.total]));
 
   const runDates = [...new Set(runs.map((r) => dayOf(r.scannedAt)))]
     .sort()
     .slice(-MAX_RUN_DATES);
 
-  const byUrl = new Map<string, AuditRow[]>();
+  const byUrl = new Map<string, typeof runs>();
   for (const r of runs) {
     const list = byUrl.get(r.url) ?? [];
     list.push(r); // already ordered oldest → newest
     byUrl.set(r.url, list);
+  }
+
+  // Full violation rows for only the latest run of each URL.
+  const latestIds = [...byUrl.values()].map(
+    (urlRuns) => urlRuns[urlRuns.length - 1]!.id,
+  );
+  const latestViolations = await db
+    .select()
+    .from(violation)
+    .where(inArray(violation.auditId, latestIds));
+  const violationsByAudit = new Map<string, ViolationRow[]>();
+  for (const v of latestViolations) {
+    const list = violationsByAudit.get(v.auditId) ?? [];
+    list.push(v);
+    violationsByAudit.set(v.auditId, list);
   }
 
   const audits: AuditRecord[] = [...byUrl.values()].map((urlRuns) => {
@@ -82,7 +106,7 @@ export async function getDashboardData(
       let total = 0;
       for (const run of urlRuns) {
         if (dayOf(run.scannedAt) > date) break;
-        total = nodeTotal(byAudit.get(run.id) ?? []);
+        total = totalByAudit.get(run.id) ?? 0;
       }
       return total;
     });
@@ -92,7 +116,7 @@ export async function getDashboardData(
       pageTitle: latest.pageTitle,
       scannedAt: latest.scannedAt.toISOString(),
       history,
-      violations: (byAudit.get(latest.id) ?? []).map(toViolation),
+      violations: (violationsByAudit.get(latest.id) ?? []).map(toViolation),
     };
   });
 

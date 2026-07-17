@@ -33,6 +33,12 @@ export const auth = betterAuth({
       });
     },
   },
+  // Lets a signed-in user delete their own account from the account page.
+  // Email+password users re-verify with their password on the client call; the
+  // database cascades (audit→violation, apiKey, session, account) clear the rest.
+  user: {
+    deleteUser: { enabled: true },
+  },
   socialProviders: {
     ...(googleEnabled
       ? {

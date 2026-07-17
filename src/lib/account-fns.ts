@@ -9,7 +9,7 @@ import { redirect } from "@tanstack/react-router";
 import { and, desc, eq } from "drizzle-orm";
 import { currentSessionUser } from "@/lib/session";
 import { db } from "@/db";
-import { apiKey } from "@/db/schema";
+import { apiKey, audit } from "@/db/schema";
 import { generateKey, hashKey } from "@/lib/api-key";
 
 // Key metadata safe to send to the client — never the hash or the key itself.
@@ -93,3 +93,15 @@ export const revokeApiKey = createServerFn({ method: "POST" })
       .where(and(eq(apiKey.id, id), eq(apiKey.userId, user.id)));
     return { keys: await listKeysFor(user.id) };
   });
+
+// Deletes every synced audit (and, via the auditId cascade, its violation rows)
+// for the current user. The owner-scoped where clause is the entire security
+// boundary — it must never widen.
+export const deleteAllAudits = createServerFn({ method: "POST" }).handler(
+  async () => {
+    const user = await currentSessionUser();
+    if (!user) throw redirect({ to: "/login" });
+    await db.delete(audit).where(eq(audit.userId, user.id));
+    return { ok: true };
+  },
+);

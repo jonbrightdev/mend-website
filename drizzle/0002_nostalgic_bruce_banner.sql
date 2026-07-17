@@ -1,0 +1,1 @@
+CREATE INDEX "violation_audit_idx" ON "violation" USING btree ("auditId");

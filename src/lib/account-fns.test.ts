@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { createTestDb } from "@/test/db";
-import { apiKey, user } from "@/db/schema";
+import { apiKey, audit, user, violation } from "@/db/schema";
 
 // Covers the per-user active-key quota. account-fns imports "@/db", so it is
 // imported dynamically in beforeAll — after createTestDb() has put the
@@ -72,5 +73,78 @@ describe("assertKeyQuota", () => {
     await seedKeys("u-other", 1);
 
     await expect(assertKeyQuota("u-other")).resolves.toBeUndefined();
+  });
+});
+
+// deleteAllAudits runs `db.delete(audit).where(eq(audit.userId, user.id))`
+// inside a createServerFn wrapper that Vitest can't invoke directly, so this
+// exercises that exact owner-scoped query at the Drizzle level. The critical
+// case is the cascade: deleting the audit must take its violation rows with it,
+// or orphaned page snippets survive a "delete".
+describe("deleteAllAudits (owner-scoped cascade delete)", () => {
+  let db: Awaited<ReturnType<typeof createTestDb>>;
+
+  async function seedAudit(id: string, userId: string, nodeCount: number) {
+    await db.insert(audit).values({
+      id,
+      userId,
+      url: `https://example.com/${id}`,
+      pageTitle: id,
+      scannedAt: new Date("2026-07-01T12:00:00.000Z"),
+    });
+    await db.insert(violation).values({
+      id: `v-${id}`,
+      auditId: id,
+      ruleId: "image-alt",
+      impact: "critical",
+      help: "Images must have alternative text",
+      helpUrl: "",
+      description: "",
+      tags: [],
+      nodes: Array.from({ length: nodeCount }, () => ({
+        target: "img",
+        html: "<img>",
+        failureSummary: "no alt",
+      })),
+    });
+  }
+
+  beforeAll(async () => {
+    db = await createTestDb();
+    await db.insert(user).values([
+      { id: "u-del", name: "Ada", email: "del@example.com" },
+      { id: "u-keep", name: "Bo", email: "keep@example.com" },
+    ]);
+    await seedAudit("a-del-1", "u-del", 2);
+    await seedAudit("a-del-2", "u-del", 1);
+    await seedAudit("a-keep-1", "u-keep", 3);
+  });
+
+  it("deletes the owner's audits and their violations, sparing other users", async () => {
+    await db.delete(audit).where(eq(audit.userId, "u-del"));
+
+    const delAudits = await db
+      .select()
+      .from(audit)
+      .where(eq(audit.userId, "u-del"));
+    expect(delAudits).toHaveLength(0);
+
+    // The cascade is the point: no orphaned violation rows remain.
+    const delViolations = await db
+      .select()
+      .from(violation)
+      .where(eq(violation.auditId, "a-del-1"));
+    expect(delViolations).toHaveLength(0);
+
+    const keepAudits = await db
+      .select()
+      .from(audit)
+      .where(eq(audit.userId, "u-keep"));
+    expect(keepAudits).toHaveLength(1);
+    const keepViolations = await db
+      .select()
+      .from(violation)
+      .where(eq(violation.auditId, "a-keep-1"));
+    expect(keepViolations).toHaveLength(1);
   });
 });
