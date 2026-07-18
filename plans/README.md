@@ -19,7 +19,7 @@ story), and 015 (the `getDashboardData` rewrite).
 | Plan | Title | Priority | Effort | Status |
 |------|-------|----------|--------|--------|
 | [023](023-email-verification.md) | Send verification emails on signup | P2 | S | TODO |
-| [024](024-ingest-rate-limit.md) | Rate-limit /api/ingest per user | P1 | M | TODO |
+| [024](024-ingest-rate-limit.md) | Rate-limit /api/ingest per user | P1 | M | DONE |
 | [025](025-data-export.md) | Account data export as JSON | P2 | M | TODO |
 | [026](026-rule-catalogue-expansion.md) | Expand the rule catalogue (+15 rules) | P3 | M | TODO |
 | [027](027-ingest-contract.md) | Pin the ingest contract with shared fixtures | P3 | M | TODO |

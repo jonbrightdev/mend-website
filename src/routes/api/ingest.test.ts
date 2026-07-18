@@ -176,3 +176,41 @@ describe("POST /api/ingest", () => {
     expect(runs).toHaveLength(0);
   });
 });
+
+describe("POST /api/ingest rate limiting", () => {
+  // A distinct user/key from the tests above: the limiter is module state
+  // shared across the file, so reusing USER_ID would carry over its request
+  // count and make this test's 61st request 429 for the wrong reason.
+  const RATE_LIMIT_KEY = "mend_test_key_rate_limit";
+  const RATE_LIMIT_USER_ID = "u-ingest-rate-limit";
+
+  beforeAll(async () => {
+    await db.insert(user).values({
+      id: RATE_LIMIT_USER_ID,
+      name: "Rate Limit Test",
+      email: "rate-limit@example.com",
+    });
+    await db.insert(apiKey).values({
+      id: "k-ingest-rate-limit",
+      userId: RATE_LIMIT_USER_ID,
+      hashedKey: await hashKey(RATE_LIMIT_KEY),
+      name: "Rate limit test key",
+    });
+  });
+
+  it("allows 60 requests per minute and denies the 61st with 429 + Retry-After", async () => {
+    const body = payload({ url: "https://example.com/rate-limit" });
+
+    for (let i = 0; i < 60; i++) {
+      const res = await post({ request: request(body, RATE_LIMIT_KEY) });
+      expect(res.status).toBeLessThan(429);
+    }
+
+    const res = await post({ request: request(body, RATE_LIMIT_KEY) });
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBeTruthy();
+    const responseBody = (await res.json()) as { error: string };
+    expect(typeof responseBody.error).toBe("string");
+    expect(responseBody.error.length).toBeGreaterThan(0);
+  });
+});

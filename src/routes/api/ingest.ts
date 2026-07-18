@@ -6,6 +6,7 @@ import { apiKey, audit, violation } from "@/db/schema";
 import { hashKey } from "@/lib/api-key";
 import { IngestError, parsePayload, groupViolations } from "@/lib/ingest-payload";
 import type { IngestPayload } from "@/lib/ingest-payload";
+import { createRateLimiter } from "@/lib/rate-limit";
 
 // Accepts the extension's AuditResult payload (../mend-a11y/src/lib/types.ts)
 // plus an optional pageTitle. Issues arrive flat (one per affected element)
@@ -26,6 +27,10 @@ import type { IngestPayload } from "@/lib/ingest-payload";
 // a backstop that no real payload approaches. The extension's largest plausible
 // run (1000 issues, html clipped to 500 chars) is an order of magnitude under.
 const MAX_BODY_BYTES = 1_000_000;
+
+// Single-node deploy (railway.json runs one process), so an in-process
+// limiter is sufficient. Revisit if this ever runs on more than one node.
+const limiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -82,6 +87,17 @@ export const Route = createFileRoute("/api/ingest")({
         const userId = await resolveUserId(request);
         if (!userId) {
           return json({ error: "Unauthorized" }, 401);
+        }
+
+        const verdict = limiter.check(userId);
+        if (!verdict.ok) {
+          return Response.json(
+            { error: "Rate limit exceeded — try again in a minute." },
+            {
+              status: 429,
+              headers: { ...CORS_HEADERS, "Retry-After": String(verdict.retryAfterSeconds) },
+            },
+          );
         }
 
         const text = await request.text();
