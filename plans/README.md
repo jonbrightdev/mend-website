@@ -23,7 +23,7 @@ migration `0002_nostalgic_bruce_banner.sql`), 014 (account-page danger zone),
 |------|-------|----------|--------|------------|--------|
 | [028](028-oauth-account-deletion.md) | Let OAuth-only users delete their account | P1 | M | — | DONE (plus an unplanned fix it surfaced: `account-fns` plain db exports moved to `account-queries.ts` so the server-only import protection from `2e8f629` passes — the build was broken at that baseline) |
 | [029](029-ingest-500-cors.md) | CORS-visible JSON errors on ingest failure | P1 | S | — | DONE (500 catch-all around the storage transaction; contract synced to `../mend-a11y` working tree, not committed there) |
-| [030](030-ingest-body-cap-and-write-order.md) | Early body-size gate + lastUsedAt after rate limit | P2 | S | 029 | TODO |
+| [030](030-ingest-body-cap-and-write-order.md) | Early body-size gate + lastUsedAt after rate limit | P2 | S | 029 | DONE (Content-Length fast-path 413 before buffering; `lastUsedAt` touch deferred to after the limiter so rate-limited requests cost one indexed SELECT, no write) |
 | [031](031-retire-db-push-from-docs.md) | Docs bootstrap with db:migrate, not db:push | P2 | S | — | TODO |
 | [032](032-lint-gate.md) | Add a Biome lint gate to the toolchain and CI | P2 | M | — | TODO |
 | [033](033-component-test-layer.md) | Component-test layer for dashboard + account | P3 | M | 028, 032 | TODO |

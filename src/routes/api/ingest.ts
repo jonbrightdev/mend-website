@@ -54,8 +54,12 @@ function bearerToken(request: Request): string | null {
 }
 
 // Resolves the acting user: a valid, non-revoked API key wins; otherwise the
-// session cookie. Returns null when neither identifies a user.
-async function resolveUserId(request: Request): Promise<string | null> {
+// session cookie. Returns the key row id for key-based auth so the caller can
+// touch lastUsedAt — deliberately *after* the rate-limit check, so hammering
+// past the limit costs one indexed SELECT, not a write, per request.
+async function resolveUser(
+  request: Request,
+): Promise<{ userId: string; apiKeyId: string | null } | null> {
   const token = bearerToken(request);
   if (token) {
     const hashed = await hashKey(token);
@@ -65,18 +69,11 @@ async function resolveUserId(request: Request): Promise<string | null> {
       .where(eq(apiKey.hashedKey, hashed))
       .limit(1);
     if (!row || row.revokedAt) return null;
-    // Touch lastUsedAt so the account page can show the key is live. Must be
-    // awaited: Drizzle query builders are lazy and only run when awaited, so a
-    // fire-and-forget `void db.update(...)` would never actually execute.
-    await db
-      .update(apiKey)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(apiKey.id, row.id));
-    return row.userId;
+    return { userId: row.userId, apiKeyId: row.id };
   }
 
   const session = await auth.api.getSession({ headers: request.headers });
-  return session?.user.id ?? null;
+  return session ? { userId: session.user.id, apiKeyId: null } : null;
 }
 
 export const Route = createFileRoute("/api/ingest")({
@@ -84,10 +81,11 @@ export const Route = createFileRoute("/api/ingest")({
     handlers: {
       OPTIONS: () => new Response(null, { status: 204, headers: CORS_HEADERS }),
       POST: async ({ request }) => {
-        const userId = await resolveUserId(request);
-        if (!userId) {
+        const who = await resolveUser(request);
+        if (!who) {
           return json({ error: "Unauthorized" }, 401);
         }
+        const { userId, apiKeyId } = who;
 
         const verdict = limiter.check(userId);
         if (!verdict.ok) {
@@ -98,6 +96,25 @@ export const Route = createFileRoute("/api/ingest")({
               headers: { ...CORS_HEADERS, "Retry-After": String(verdict.retryAfterSeconds) },
             },
           );
+        }
+
+        if (apiKeyId) {
+          // Touch lastUsedAt so the account page can show the key is live.
+          // Must be awaited: Drizzle query builders are lazy and only run when
+          // awaited, so a fire-and-forget void would never execute.
+          await db
+            .update(apiKey)
+            .set({ lastUsedAt: new Date() })
+            .where(eq(apiKey.id, apiKeyId));
+        }
+
+        // One UTF-16 unit is at most 3 UTF-8 bytes, so a contract-compliant body
+        // (≤ MAX_BODY_BYTES UTF-16 units) can never exceed 3× that in bytes.
+        // Reject on the header before buffering; the post-read check below stays
+        // authoritative for chunked bodies that carry no Content-Length.
+        const contentLength = Number(request.headers.get("content-length"));
+        if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES * 3) {
+          return json({ error: "Payload too large" }, 413);
         }
 
         const text = await request.text();

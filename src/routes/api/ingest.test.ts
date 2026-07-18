@@ -140,6 +140,28 @@ describe("POST /api/ingest", () => {
     expect(await res.json()).toEqual({ error: "Payload too large" });
   });
 
+  it("rejects on an oversized Content-Length header before buffering the body", async () => {
+    // Forged header well over 3× the UTF-16 cap, but a tiny body: the gate must
+    // trip on the header alone, never reading the body.
+    const req = new Request("http://localhost/api/ingest", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${KEY}`,
+        "content-type": "application/json",
+        "content-length": "3000001",
+      },
+      body: "{}",
+    });
+    // Guard: if undici ever stops preserving a forged content-length, this
+    // assertion fails loudly rather than the test passing for the wrong reason.
+    expect(req.headers.get("content-length")).toBe("3000001");
+
+    const res = await post({ request: req });
+
+    expect(res.status).toBe(413);
+    expect(await res.json()).toEqual({ error: "Payload too large" });
+  });
+
   it("still rejects a non-JSON body as a 400", async () => {
     const res = await post({
       request: new Request("http://localhost/api/ingest", {
@@ -226,5 +248,49 @@ describe("POST /api/ingest rate limiting", () => {
     const responseBody = (await res.json()) as { error: string };
     expect(typeof responseBody.error).toBe("string");
     expect(responseBody.error.length).toBeGreaterThan(0);
+  });
+
+  // The touch of lastUsedAt now sits *after* the limiter, so a rate-limited
+  // request must not cost a write. A fresh user/key so this test owns its full
+  // 60-request budget.
+  it("does not touch lastUsedAt when the request is rate-limited", async () => {
+    const ORDER_KEY = "mend_test_key_order";
+    const ORDER_USER_ID = "u-ingest-order";
+    await db.insert(user).values({
+      id: ORDER_USER_ID,
+      name: "Order Test",
+      email: "order@example.com",
+    });
+    await db.insert(apiKey).values({
+      id: "k-ingest-order",
+      userId: ORDER_USER_ID,
+      hashedKey: await hashKey(ORDER_KEY),
+      name: "Order test key",
+    });
+
+    // 60 allowed requests, each with a distinct startedAt so none collide on
+    // the idempotency index.
+    const base = Date.parse("2026-08-01T00:00:00.000Z");
+    for (let i = 0; i < 60; i++) {
+      const body = payload({ url: "https://example.com/order", startedAt: base + i * 1000 });
+      const res = await post({ request: request(body, ORDER_KEY) });
+      expect(res.status).toBeLessThan(429);
+    }
+
+    const afterAllowed = await db.select().from(apiKey).where(eq(apiKey.id, "k-ingest-order"));
+    const touched = afterAllowed[0]!.lastUsedAt;
+    expect(touched).not.toBeNull();
+
+    // Request 61 trips the limiter; it must return before the touch runs.
+    const limited = await post({
+      request: request(
+        payload({ url: "https://example.com/order", startedAt: base + 60_000 }),
+        ORDER_KEY,
+      ),
+    });
+    expect(limited.status).toBe(429);
+
+    const afterLimited = await db.select().from(apiKey).where(eq(apiKey.id, "k-ingest-order"));
+    expect(afterLimited[0]!.lastUsedAt).toEqual(touched);
   });
 });
