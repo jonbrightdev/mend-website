@@ -3,6 +3,7 @@ import {
   aggregateTrend,
   byRule,
   countsByImpact,
+  RULES,
   ruleSpecFor,
   wcagUnderstandingUrl,
   type AuditRecord,
@@ -165,4 +166,37 @@ describe("ruleSpecFor", () => {
     expect(spec.wcag).toEqual(["1.3.1"]);
     expect(spec.tags).toEqual(["1.3.1", "cat.semantics"]);
   });
+});
+
+describe("RULES catalogue invariants", () => {
+  const entries = Object.entries(RULES);
+
+  it("has a floor of at least 29 hand-written entries", () => {
+    expect(entries.length).toBeGreaterThanOrEqual(29);
+  });
+
+  for (const [ruleId, spec] of entries) {
+    describe(ruleId, () => {
+      it("has non-empty help, description and fix", () => {
+        expect(spec.help.length).toBeGreaterThan(0);
+        expect(spec.description.length).toBeGreaterThan(0);
+        expect(spec.fix.length).toBeGreaterThan(0);
+      });
+
+      it("has both a before and an after example", () => {
+        expect(spec.before).toBeTruthy();
+        expect(spec.after).toBeTruthy();
+      });
+
+      it("has a helpUrl matching the axe 4.10 Deque convention", () => {
+        expect(spec.helpUrl).toBe(`https://dequeuniversity.com/rules/axe/4.10/${ruleId}`);
+      });
+
+      it("has WCAG labels that all resolve to a real Understanding page", () => {
+        for (const label of spec.wcag) {
+          expect(wcagUnderstandingUrl(label)).not.toBeNull();
+        }
+      });
+    });
+  }
 });
