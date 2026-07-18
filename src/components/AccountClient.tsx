@@ -231,6 +231,17 @@ function DangerZone() {
         )}
 
         <div className="danger-action">
+          <h3>Export your data</h3>
+          <p>
+            Download everything Mend has stored for your account — audits,
+            violations, and API-key names — as JSON.
+          </p>
+          <a className="btn btn--ghost" href="/api/export">
+            Download JSON
+          </a>
+        </div>
+
+        <div className="danger-action">
           <h3>Delete all synced audits</h3>
           <p>
             Removes every audit run saved to this dashboard, and the issue

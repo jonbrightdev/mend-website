@@ -79,7 +79,8 @@ function PrivacyPage() {
             which stops all further requests. Audits you&apos;ve already saved
             stay in your dashboard until you delete them: your account page lets
             you delete all synced audits, or your entire account, at any time.
-            Deletion is immediate and permanent.
+            Deletion is immediate and permanent. You can also download
+            everything stored for your account as JSON from the account page.
           </p>
 
           <h2>What Mend stores</h2>
