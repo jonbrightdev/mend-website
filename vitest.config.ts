@@ -5,6 +5,8 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // Component tests opt into jsdom per file with a leading
+    // `// @vitest-environment jsdom` comment; the DB-backed suites stay on node.
+    include: ["src/**/*.test.{ts,tsx}"],
   },
 });
