@@ -22,7 +22,7 @@ story), and 015 (the `getDashboardData` rewrite).
 | [024](024-ingest-rate-limit.md) | Rate-limit /api/ingest per user | P1 | M | DONE |
 | [025](025-data-export.md) | Account data export as JSON | P2 | M | DONE |
 | [026](026-rule-catalogue-expansion.md) | Expand the rule catalogue (+15 rules) | P3 | M | DONE |
-| [027](027-ingest-contract.md) | Pin the ingest contract with shared fixtures | P3 | M | TODO |
+| [027](027-ingest-contract.md) | Pin the ingest contract with shared fixtures | P3 | M | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

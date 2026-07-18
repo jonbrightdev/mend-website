@@ -1,0 +1,40 @@
+{
+  "url": "https://site.test/page",
+  "pageTitle": "Site title",
+  "startedAt": 1752000000000,
+  "durationMs": 812,
+  "totalChecks": 950,
+  "partial": false,
+  "issues": [
+    {
+      "ruleId": "image-alt",
+      "impact": "critical",
+      "category": "images",
+      "wcag": [
+        "1.1.1"
+      ],
+      "title": "Images must have alternate text",
+      "description": "Add an alt attribute.",
+      "helpUrl": "https://example.com/help",
+      "selector": "img.hero",
+      "html": "<img class=\"hero\">",
+      "failureSummary": "Element has no alt",
+      "domOrder": 3
+    },
+    {
+      "ruleId": "label",
+      "impact": "critical",
+      "category": "forms",
+      "wcag": [
+        "1.1.1"
+      ],
+      "title": "Images must have alternate text",
+      "description": "Add an alt attribute.",
+      "helpUrl": "https://example.com/help",
+      "selector": "input#q",
+      "html": "<img class=\"hero\">",
+      "failureSummary": "Element has no alt",
+      "domOrder": 1
+    }
+  ]
+}

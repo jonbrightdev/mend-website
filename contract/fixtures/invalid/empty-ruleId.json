@@ -1,0 +1,13 @@
+{
+  "url": "https://example.com/page",
+  "startedAt": 1752000000000,
+  "issues": [
+    {
+      "ruleId": "",
+      "impact": "critical",
+      "title": "Images must have alternate text",
+      "selector": "img.hero",
+      "domOrder": 0
+    }
+  ]
+}
