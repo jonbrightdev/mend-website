@@ -33,6 +33,19 @@ export const auth = betterAuth({
       });
     },
   },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    // `url` is Better Auth's own /verify-email endpoint; it validates the
+    // token, flips user.emailVerified, and redirects to the app.
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendMail({
+        to: user.email,
+        subject: "Verify your Mend email",
+        text: `Welcome to Mend!\n\nConfirm this email address so password reset and sign-in emails reach you:\n${url}\n\nIf you didn't create a Mend account, you can ignore this email.`,
+      });
+    },
+  },
   // Lets a signed-in user delete their own account from the account page.
   // Email+password users re-verify with their password on the client call; the
   // database cascades (audit→violation, apiKey, session, account) clear the rest.
