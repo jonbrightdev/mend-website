@@ -5,6 +5,7 @@
 // Deliberately a fetch against Resend's HTTP API rather than an SDK: sending
 // plain-text mail is one POST, and this keeps the dependency count at zero. If
 // the app moves off Resend, this module is the only thing that changes.
+import "@tanstack/react-start/server-only";
 
 export interface Mail {
   to: string;

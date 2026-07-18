@@ -1,3 +1,4 @@
+import "@tanstack/react-start/server-only";
 import { mkdirSync } from "node:fs";
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
