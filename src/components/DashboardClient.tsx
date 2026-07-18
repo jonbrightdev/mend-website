@@ -283,7 +283,7 @@ export function DashboardClient({ audits, runDates }: Props) {
     [audits, search]
   );
 
-  const pct = (n: number) => (scopedTotal ? ((n / scopedTotal) * 100).toFixed(1) + "%" : "0%");
+  const pct = (n: number) => (scopedTotal ? `${((n / scopedTotal) * 100).toFixed(1)}%` : "0%");
 
   const trendHint =
     scope === "all"

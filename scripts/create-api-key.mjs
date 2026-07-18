@@ -26,7 +26,7 @@ function generateKey() {
   crypto.getRandomValues(bytes);
   let binary = "";
   for (const b of bytes) binary += String.fromCharCode(b);
-  return "mend_" + btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return `mend_${btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
 }
 
 async function hashKey(key) {

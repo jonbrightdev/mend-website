@@ -13,6 +13,7 @@
     "start": "vite preview --port 3000",
     "generate-routes": "tsr generate",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -31,6 +32,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.4",
     "@tanstack/router-cli": "^1.132.0",
     "@types/node": "^24.13.3",
     "@types/pg": "^8.20.0",

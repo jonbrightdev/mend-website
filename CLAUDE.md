@@ -60,12 +60,13 @@ To move it, change the version deliberately and check the build.
 
 ## Checks before pushing
 
-Run what CI runs (`.github/workflows/ci.yml`) — all four must pass:
+Run what CI runs (`.github/workflows/ci.yml`) — all must pass:
 
 ```
 pnpm install --frozen-lockfile
 pnpm generate-routes
 pnpm typecheck
+pnpm lint
 pnpm test
 pnpm build
 ```

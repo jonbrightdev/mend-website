@@ -43,7 +43,7 @@ export function ForgotPasswordForm() {
     return (
       <div className="auth-sent" role="status" aria-live="polite">
         <span className="auth-sent__ico" aria-hidden="true">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
             <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

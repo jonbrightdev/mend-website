@@ -29,4 +29,5 @@ function createDb() {
 
 const g = globalThis as typeof globalThis & { __mendDb?: ReturnType<typeof createDb> };
 
+// biome-ignore lint/suspicious/noAssignInExpressions: deliberate memoize-on-first-import; the globalThis cache above prevents a second PGlite connection.
 export const db = (g.__mendDb ??= createDb());

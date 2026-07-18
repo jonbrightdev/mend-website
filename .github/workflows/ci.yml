@@ -19,5 +19,6 @@ jobs:
       # typecheck runs first.
       - run: pnpm generate-routes
       - run: pnpm typecheck
+      - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
