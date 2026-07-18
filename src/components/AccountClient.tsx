@@ -10,7 +10,13 @@ import { authClient } from "@/lib/auth-client";
 // "Connect extension" panel. Generates an API key (shown once), lists existing
 // keys, and revokes them. The key is what the Mend extension pastes into its
 // settings to sync audits to this account.
-export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
+export function AccountClient({
+  initialKeys,
+  hasPassword,
+}: {
+  initialKeys: ApiKeyRow[];
+  hasPassword: boolean;
+}) {
   const [keys, setKeys] = useState<ApiKeyRow[]>(initialKeys);
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -157,7 +163,7 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
       </div>
     </section>
 
-    <DangerZone />
+    <DangerZone hasPassword={hasPassword} />
     </>
   );
 }
@@ -165,7 +171,7 @@ export function AccountClient({ initialKeys }: { initialKeys: ApiKeyRow[] }) {
 // The account page's destructive actions: delete all synced audits, or the
 // whole account. Each action arms on the first click (a second click confirms)
 // so there is no accidental one-tap deletion and no browser confirm() dialog.
-function DangerZone() {
+function DangerZone({ hasPassword }: { hasPassword: boolean }) {
   const [armed, setArmed] = useState<null | "audits" | "account">(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,11 +202,19 @@ function DangerZone() {
     setError(null);
     setPending(true);
     try {
-      // Email+password accounts must re-verify with their password; on success
-      // Better Auth clears the session and the DB cascades remove the data.
-      const { error: authError } = await authClient.deleteUser({ password });
+      // Email+password accounts must re-verify with their password. OAuth-only
+      // accounts have no password, so Better Auth instead requires a fresh
+      // session (signed in within 24 h). On success Better Auth clears the
+      // session and the DB cascades remove the data.
+      const { error: authError } = hasPassword
+        ? await authClient.deleteUser({ password })
+        : await authClient.deleteUser({});
       if (authError) {
-        setError(authError.message ?? "Couldn't delete your account.");
+        setError(
+          authError.code === "SESSION_EXPIRED"
+            ? "For security, deleting your account needs a recent sign-in. Sign out, sign back in, then try again."
+            : authError.message ?? "Couldn't delete your account.",
+        );
         setPending(false);
         return;
       }
@@ -290,7 +304,26 @@ function DangerZone() {
             Permanently deletes your account, keys, and all synced audits. This
             can&apos;t be undone.
           </p>
-          {armed === "account" ? (
+          {armed === "account" && !hasPassword ? (
+            <div className="danger-action__row">
+              <button
+                className="btn btn--danger"
+                type="button"
+                disabled={pending}
+                onClick={onDeleteAccount}
+              >
+                {pending ? "Deleting…" : "Permanently delete account"}
+              </button>
+              <button
+                className="btn btn--ghost"
+                type="button"
+                disabled={pending}
+                onClick={disarm}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : armed === "account" ? (
             <form
               onSubmit={(e) => {
                 e.preventDefault();

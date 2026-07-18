@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestDb } from "@/test/db";
-import { apiKey, audit, user, violation } from "@/db/schema";
+import { account, apiKey, audit, user, violation } from "@/db/schema";
 
-// Covers the per-user active-key quota. account-fns imports "@/db", so it is
-// imported dynamically in beforeAll — after createTestDb() has put the
+// Covers the per-user active-key quota. account-queries imports "@/db", so it
+// is imported dynamically in beforeAll — after createTestDb() has put the
 // in-memory instance on globalThis for "@/db" to pick up.
 
 let db: Awaited<ReturnType<typeof createTestDb>>;
@@ -31,7 +31,7 @@ async function seedUser(id: string) {
 describe("assertKeyQuota", () => {
   beforeAll(async () => {
     db = await createTestDb();
-    const mod = await import("@/lib/account-fns");
+    const mod = await import("@/lib/account-queries");
     assertKeyQuota = mod.assertKeyQuota;
     MAX_ACTIVE_KEYS = mod.MAX_ACTIVE_KEYS;
   });
@@ -73,6 +73,44 @@ describe("assertKeyQuota", () => {
     await seedKeys("u-other", 1);
 
     await expect(assertKeyQuota("u-other")).resolves.toBeUndefined();
+  });
+});
+
+// userHasPassword drives the delete-account UI branch: OAuth-only users have
+// no "credential" account row and must not be asked for a password. The "@/db"
+// binding is fixed at the module's first import, so this reuses the suite db
+// when the quota block already created it, and creates one when run alone.
+describe("userHasPassword", () => {
+  let userHasPassword: (userId: string) => Promise<boolean>;
+
+  beforeAll(async () => {
+    db ??= await createTestDb();
+    const mod = await import("@/lib/account-queries");
+    userHasPassword = mod.userHasPassword;
+  });
+
+  async function seedAccount(id: string, userId: string, providerId: string) {
+    await db.insert(account).values({ id, accountId: id, userId, providerId });
+  }
+
+  it("is true for a user with a credential account", async () => {
+    await seedUser("u-pw");
+    await seedAccount("acc-pw", "u-pw", "credential");
+
+    await expect(userHasPassword("u-pw")).resolves.toBe(true);
+  });
+
+  it("is false for an OAuth-only user", async () => {
+    await seedUser("u-oauth");
+    await seedAccount("acc-oauth", "u-oauth", "github");
+
+    await expect(userHasPassword("u-oauth")).resolves.toBe(false);
+  });
+
+  it("is false for a user with no account rows at all", async () => {
+    await seedUser("u-none");
+
+    await expect(userHasPassword("u-none")).resolves.toBe(false);
   });
 });
 

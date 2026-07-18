@@ -19,7 +19,7 @@ export const Route = createFileRoute("/account")({
 });
 
 function AccountPage() {
-  const { user, keys } = Route.useLoaderData();
+  const { user, keys, hasPassword } = Route.useLoaderData();
   return (
     <MarketingShell
       current="account"
@@ -39,7 +39,7 @@ function AccountPage() {
             Back to dashboard
           </Link>
         </div>
-        <AccountClient initialKeys={keys} />
+        <AccountClient initialKeys={keys} hasPassword={hasPassword} />
       </div>
     </MarketingShell>
   );
