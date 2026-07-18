@@ -34,12 +34,14 @@ No external services needed — without a `DATABASE_URL` it uses embedded Postgr
 ```bash
 pnpm install
 cp .env.example .env   # set BETTER_AUTH_SECRET (openssl rand -base64 32)
-pnpm db:push           # create tables (once)
+pnpm db:migrate        # create tables (replays drizzle/ migrations)
 pnpm dev               # http://localhost:3000
 ```
 
-To use a real Postgres server, set `DATABASE_URL` in `.env` and run `pnpm
-db:push` again. For production: `pnpm build`, then `node .output/server/index.mjs`.
+To use a real Postgres server, set `DATABASE_URL` in `.env` and run
+`pnpm db:migrate` again. (If you previously created `./.data` with `db:push`,
+delete it first — `db:migrate` expects to own the schema from scratch.) For
+production: `pnpm build`, then `node .output/server/index.mjs`.
 
 ## License
 
