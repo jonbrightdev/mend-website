@@ -54,6 +54,28 @@ describe("AccountClient — keys", () => {
     expect(screen.queryByLabelText(/api key/i)).not.toBeInTheDocument();
   });
 
+  it("broadcasts the generated key via postMessage to its own origin", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createApiKey).mockResolvedValue({
+      key: "mend_secret_abc",
+      keys: [key()],
+    });
+    // jsdom always reports "" for a same-window MessageEvent's `origin`
+    // (verified against jsdom 29 directly), so listening for the "message"
+    // event can't check the target origin argument. Spy on postMessage
+    // itself instead — that's the call whose arguments the done criteria
+    // actually cares about (a literal origin, never "*").
+    const postMessage = vi.spyOn(window, "postMessage");
+
+    render(<AccountClient initialKeys={[]} hasPassword={true} />);
+    await user.click(screen.getByRole("button", { name: /generate a key/i }));
+
+    expect(postMessage).toHaveBeenCalledWith(
+      { source: "mend-website", type: "MEND_API_KEY", apiKey: "mend_secret_abc" },
+      window.location.origin,
+    );
+  });
+
   it("drops a revoked key from the list", async () => {
     const user = userEvent.setup();
     vi.mocked(revokeApiKey).mockResolvedValue({ keys: [] });

@@ -28,6 +28,7 @@ migration `0002_nostalgic_bruce_banner.sql`), 014 (account-page danger zone),
 | [032](032-lint-gate.md) | Add a Biome lint gate to the toolchain and CI | P2 | M | — | DONE (Biome 2.5.4, formatter off, `pnpm lint` after typecheck in CI + CLAUDE.md. Fixed: 3 decorative SVGs got `aria-hidden`, 2 string concats → template literals. Suppressed inline: `noAssignInExpressions` on the db memoization line. Disabled rules — `style/noNonNullAssertion` (deliberate bounds-guaranteed `!`), `complexity/noImportantStyles` + `style/noDescendingSpecificity` (deliberate a11y CSS `!important` / cascade order), `suspicious/noArrayIndexKey` (stable/static lists), and **`a11y/useSemanticElements` + `a11y/useAriaPropsSupportedByRole`** — the last two are real a11y signals on `role="group"` containers and `aria-label` on generic-role spans; fixing them is behavioral (out of scope here) so they were disabled — **worth a dedicated a11y follow-up plan to re-enable and fix**.) |
 | [033](033-component-test-layer.md) | Component-test layer for dashboard + account | P3 | M | 028, 032 | DONE (jsdom + Testing Library, opt-in per file via `// @vitest-environment jsdom`; 11 new tests — 5 DashboardClient, 6 AccountClient incl. the OAuth-only deletion branch. RTL auto-cleanup needs a global `afterEach` this repo doesn't enable, so each file registers `afterEach(cleanup)` itself; jest-dom matchers via the `/vitest` subpath.) |
 | [034](034-detail-page-trend.md) | Per-page violation trend on the detail page | P3 | M | — | TODO |
+| [035](035-extension-key-postmessage.md) | Broadcast the generated API key to the extension via postMessage | P3 | S | — | DONE (`onGenerate` posts `{ source: "mend-website", type: "MEND_API_KEY", apiKey }` to `window.location.origin` right after `setFreshKey`; test spies on `window.postMessage` directly rather than listening for the "message" event — jsdom 29 always reports `origin: ""` on a same-window `MessageEvent`, confirmed with a standalone repro, so the event-listener approach in the plan can't check the target-origin argument) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -79,6 +80,14 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - 023 and nothing else touches `src/lib/auth.ts`; 024 and nothing else
   touches the ingest route; 025 and nothing else touches `AccountClient.tsx`
   — no rebase risk between any pair.
+
+### Plan 035 (cross-repo, like 027)
+
+- **035 is the website half of a two-repo feature.** The extension half is
+  `../mend-a11y/plans/007-account-key-relay.md`, handed off to a fresh session
+  in that repo. Either half can land first — each is inert without the other,
+  and neither breaks anything on its own. Unlike 027, 035 does not itself edit
+  `../mend-a11y`; it's a separate plan executed as a separate session there.
 
 ### Animation generation (016–022)
 

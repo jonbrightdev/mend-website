@@ -33,6 +33,16 @@ export function AccountClient({
       setKeys(next);
       setFreshKey(key);
       setCopied(false);
+      // Best-effort handoff to the extension: if its content script is
+      // listening on this page (see ../mend-a11y/plans/007), it stores the
+      // key directly and the user never needs the copy/paste below. Silently
+      // a no-op if no listener is present — the manual field stays the
+      // fallback either way. Target our own origin explicitly, never "*", so
+      // the key can't be picked up by an unrelated listener.
+      window.postMessage(
+        { source: "mend-website", type: "MEND_API_KEY", apiKey: key },
+        window.location.origin,
+      );
     } catch {
       setError("Couldn't create a key. Please try again.");
     } finally {
