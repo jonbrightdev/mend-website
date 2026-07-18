@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestDb } from "@/test/db";
 import { hashKey } from "@/lib/api-key";
@@ -151,6 +151,20 @@ describe("POST /api/ingest", () => {
 
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Body must be JSON" });
+  });
+
+  it("returns a CORS-visible JSON 500 when the transaction fails", async () => {
+    // Distinct startedAt so the mocked-away insert can't collide with the
+    // idempotency index used by other tests in this suite.
+    const body = payload({ startedAt: Date.parse("2026-07-05T09:00:00.000Z") });
+    const spy = vi.spyOn(db, "transaction").mockRejectedValueOnce(new Error("boom"));
+    const res = await post({ request: request(body) });
+    spy.mockRestore();
+
+    expect(res.status).toBe(500);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    const parsed = (await res.json()) as { error: string };
+    expect(parsed.error).toMatch(/went wrong/i);
   });
 
   // The fix leans on the driver rolling a failed transaction back. If PGlite

@@ -66,6 +66,7 @@ a resend of the same audit, not a new one.
 | `401` | `{ error }` | no valid API key or session |
 | `413` | `{ error }` | body exceeds 1,000,000 UTF-16 units |
 | `429` | `{ error }`, with a `Retry-After` header (seconds) | caller (by user id) exceeded 60 requests/minute |
+| `500` | `{ error }` | unexpected server failure while storing — safe to retry; a successful earlier attempt makes the retry a `200 duplicate` |
 
 The extension shows the `error` string from the body verbatim in its
 panel, so wording changes here are user-visible on that side too.

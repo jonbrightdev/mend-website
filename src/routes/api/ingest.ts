@@ -126,31 +126,39 @@ export const Route = createFileRoute("/api/ingest")({
         // permanent, since the retry hits the conflict path below and returns
         // success without ever writing the missing violations.
         const auditId = crypto.randomUUID();
-        const result = await db.transaction(async (tx) => {
-          const inserted = await tx
-            .insert(audit)
-            .values({
-              id: auditId,
-              userId,
-              url: payload.url,
-              pageTitle: payload.pageTitle,
-              scannedAt: payload.scannedAt,
-              durationMs: payload.durationMs,
-              totalChecks: payload.totalChecks,
-              partial: payload.partial,
-            })
-            .onConflictDoNothing()
-            .returning();
+        let result: { duplicate: true } | { duplicate: false; count: number };
+        try {
+          result = await db.transaction(async (tx) => {
+            const inserted = await tx
+              .insert(audit)
+              .values({
+                id: auditId,
+                userId,
+                url: payload.url,
+                pageTitle: payload.pageTitle,
+                scannedAt: payload.scannedAt,
+                durationMs: payload.durationMs,
+                totalChecks: payload.totalChecks,
+                partial: payload.partial,
+              })
+              .onConflictDoNothing()
+              .returning();
 
-          // Same (user, url, scannedAt) already stored: idempotent success.
-          if (inserted.length === 0) return { duplicate: true as const };
+            // Same (user, url, scannedAt) already stored: idempotent success.
+            if (inserted.length === 0) return { duplicate: true as const };
 
-          const violations = groupViolations(auditId, payload.issues);
-          if (violations.length > 0) {
-            await tx.insert(violation).values(violations);
-          }
-          return { duplicate: false as const, count: violations.length };
-        });
+            const violations = groupViolations(auditId, payload.issues);
+            if (violations.length > 0) {
+              await tx.insert(violation).values(violations);
+            }
+            return { duplicate: false as const, count: violations.length };
+          });
+        } catch (e) {
+          // Without this, the framework's bare 500 has no CORS headers and the
+          // extension surfaces an opaque network error instead of our message.
+          console.error("ingest: failed to store audit", e);
+          return json({ error: "Something went wrong saving this audit. Please try again." }, 500);
+        }
 
         if (result.duplicate) {
           return json({ duplicate: true }, 200);
