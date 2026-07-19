@@ -28,6 +28,6 @@ export const fetchAudit = createServerFn({ method: "GET" })
   .handler(async ({ data: auditId }) => {
     const user = await currentSessionUser();
     if (!user) throw redirect({ to: "/login" });
-    const audit = await getAuditRecord(user.id, auditId);
-    return { user, audit: audit ?? null };
+    const result = await getAuditRecord(user.id, auditId);
+    return { user, audit: result?.record ?? null, trend: result?.trend ?? [] };
   });

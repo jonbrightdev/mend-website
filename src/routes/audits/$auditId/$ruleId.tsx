@@ -3,6 +3,7 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { DetailsChipPanel } from "@/components/DetailsChipPanel";
+import { TrendChart } from "@/components/TrendChart";
 import {
   ruleSpecFor,
   wcagUnderstandingUrl,
@@ -13,7 +14,7 @@ import { fetchAudit } from "@/lib/dashboard-fns";
 
 export const Route = createFileRoute("/audits/$auditId/$ruleId")({
   loader: async ({ params }) => {
-    const { user, audit } = await fetchAudit({ data: params.auditId });
+    const { user, audit, trend } = await fetchAudit({ data: params.auditId });
     if (!audit) throw redirect({ to: "/dashboard" });
 
     const violation = audit.violations.find((v) => v.id === params.ruleId);
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/audits/$auditId/$ruleId")({
     // assembled from the ingested violation itself.
     const rule = ruleSpecFor(violation);
 
-    return { user, audit, violation, rule };
+    return { user, audit, trend, violation, rule };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -53,7 +54,7 @@ function impactLabel(impact: string): string {
 
 function DetailsPage() {
   const { auditId, ruleId } = Route.useParams();
-  const { user, audit, violation, rule } = Route.useLoaderData();
+  const { user, audit, trend, violation, rule } = Route.useLoaderData();
 
   const pageHost = audit.url.replace(/^https?:\/\//, "");
   const nodeCount = violation.nodes.length;
@@ -131,6 +132,17 @@ function DetailsPage() {
             />
           </div>
         </section>
+
+        {/* Per-page trend — only once there is more than one run day */}
+        {trend.length >= 2 && (
+          <section className="panel" aria-labelledby="page-trend-h">
+            <div className="panel__head">
+              <h2 id="page-trend-h">This page over time</h2>
+              <span className="hint">{trend.length} run days</span>
+            </div>
+            <TrendChart pts={trend} />
+          </section>
+        )}
 
         {/* Violation header */}
         <div className="det-head">

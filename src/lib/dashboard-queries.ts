@@ -7,7 +7,7 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { audit, violation } from "@/db/schema";
-import type { AuditRecord, Violation } from "@/lib/dashboard-data";
+import type { AuditRecord, TrendPoint, Violation } from "@/lib/dashboard-data";
 
 type ViolationRow = typeof violation.$inferSelect;
 
@@ -125,11 +125,15 @@ export async function getDashboardData(
   return { audits, runDates };
 }
 
-/** A single run by id, scoped to the owning user. history is not populated. */
+/**
+ * A single run by id, scoped to the owning user. history is not populated;
+ * the page's own trend is returned separately as day-bucketed TrendPoints
+ * (one point per run day of this URL, the day's last run's node total).
+ */
 export async function getAuditRecord(
   userId: string,
   auditId: string,
-): Promise<AuditRecord | undefined> {
+): Promise<{ record: AuditRecord; trend: TrendPoint[] } | undefined> {
   const [run] = await db
     .select()
     .from(audit)
@@ -142,12 +146,44 @@ export async function getAuditRecord(
     .from(violation)
     .where(eq(violation.auditId, run.id));
 
+  // Every run of this page, oldest first, for the trend.
+  const pageRuns = await db
+    .select({ id: audit.id, scannedAt: audit.scannedAt })
+    .from(audit)
+    .where(and(eq(audit.userId, userId), eq(audit.url, run.url)))
+    .orderBy(asc(audit.scannedAt));
+
+  // Per-run node totals summed SQL-side, same idiom as getDashboardData but
+  // scoped to this page. Runs absent from the result have no violations → 0.
+  const totals = await db
+    .select({
+      auditId: violation.auditId,
+      total: sql<number>`sum(jsonb_array_length(${violation.nodes}))`.mapWith(Number),
+    })
+    .from(violation)
+    .innerJoin(audit, eq(violation.auditId, audit.id))
+    .where(and(eq(audit.userId, userId), eq(audit.url, run.url)))
+    .groupBy(violation.auditId);
+  const totalByAudit = new Map(totals.map((t) => [t.auditId, t.total]));
+
+  // One point per run day; a later same-day run overwrites the earlier one's
+  // slot, so each day keeps its last run. Runs ascend, so days ascend too.
+  const lastRunOfDay = new Map<string, string>();
+  for (const r of pageRuns) lastRunOfDay.set(dayOf(r.scannedAt), r.id);
+  const trend: TrendPoint[] = [...lastRunOfDay].map(([date, id]) => ({
+    date,
+    total: totalByAudit.get(id) ?? 0,
+  }));
+
   return {
-    id: run.id,
-    url: run.url,
-    pageTitle: run.pageTitle,
-    scannedAt: run.scannedAt.toISOString(),
-    history: [],
-    violations: violationRows.map(toViolation),
+    record: {
+      id: run.id,
+      url: run.url,
+      pageTitle: run.pageTitle,
+      scannedAt: run.scannedAt.toISOString(),
+      history: [],
+      violations: violationRows.map(toViolation),
+    },
+    trend,
   };
 }

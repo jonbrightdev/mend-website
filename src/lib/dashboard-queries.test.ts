@@ -12,6 +12,16 @@ let db: Awaited<ReturnType<typeof createTestDb>>;
 let getDashboardData: (
   userId: string,
 ) => Promise<{ audits: import("@/lib/dashboard-data").AuditRecord[]; runDates: string[] }>;
+let getAuditRecord: (
+  userId: string,
+  auditId: string,
+) => Promise<
+  | {
+      record: import("@/lib/dashboard-data").AuditRecord;
+      trend: import("@/lib/dashboard-data").TrendPoint[];
+    }
+  | undefined
+>;
 
 // Seeds one run and one violation per entry in `nodeCounts` (each with that many
 // nodes), so a run's node total is the sum of nodeCounts. An empty array seeds a
@@ -124,5 +134,78 @@ describe("getDashboardData", () => {
 
   it("returns empty results for a user with no runs", async () => {
     expect(await getDashboardData("u-none")).toEqual({ audits: [], runDates: [] });
+  });
+});
+
+describe("getAuditRecord", () => {
+  // Runs inside the same file as the suite above, so the global test db
+  // already exists — createTestDb() must not run twice, or the module under
+  // test would keep querying the first instance. Seeds its own users.
+  beforeAll(async () => {
+    ({ getAuditRecord } = await import("@/lib/dashboard-queries"));
+    await db.insert(user).values([
+      { id: "u-t", name: "Té", email: "t@example.com" },
+      { id: "u-t2", name: "Ty", email: "t2@example.com" },
+    ]);
+
+    // u-t, https://t.example/: 3 nodes on day1; two runs on day2 (5 then 4 —
+    // the later one must win); a zero-violation run on day3.
+    await seedRun("t1", "u-t", "https://t.example/", "2026-07-01T09:00:00.000Z", [2, 1]);
+    await seedRun("t2", "u-t", "https://t.example/", "2026-07-02T09:00:00.000Z", [5]);
+    await seedRun("t3", "u-t", "https://t.example/", "2026-07-02T14:00:00.000Z", [4]);
+    await seedRun("t4", "u-t", "https://t.example/", "2026-07-03T09:00:00.000Z", []);
+
+    // Isolation: same user / different URL, and different user / same URL.
+    await seedRun("o1", "u-t", "https://other.example/", "2026-07-02T10:00:00.000Z", [9]);
+    await seedRun("x1", "u-t2", "https://t.example/", "2026-07-01T10:00:00.000Z", [6]);
+  });
+
+  it("returns the record with an ascending day-bucketed trend and empty history", async () => {
+    const result = await getAuditRecord("u-t", "t4");
+    expect(result).toBeDefined();
+    const { record, trend } = result!;
+
+    expect(record.id).toBe("t4");
+    expect(record.url).toBe("https://t.example/");
+    expect(record.scannedAt).toBe("2026-07-03T09:00:00.000Z");
+    expect(record.history).toEqual([]); // the AuditRecord contract is unchanged
+    expect(record.violations).toHaveLength(0); // t4 seeded none
+
+    expect(trend).toEqual([
+      { date: "2026-07-01", total: 3 },
+      { date: "2026-07-02", total: 4 },
+      { date: "2026-07-03", total: 0 },
+    ]);
+  });
+
+  it("buckets same-day runs to the day's last run", async () => {
+    // Viewed from the earlier day-2 run, the day-2 point is still the later
+    // run's total: the trend describes the page, not the viewed run.
+    const result = await getAuditRecord("u-t", "t2");
+    const day2 = result!.trend.find((p) => p.date === "2026-07-02");
+    expect(day2).toEqual({ date: "2026-07-02", total: 4 });
+  });
+
+  it("counts a zero-violation run as a 0 point", async () => {
+    const result = await getAuditRecord("u-t", "t1");
+    expect(result!.trend.at(-1)).toEqual({ date: "2026-07-03", total: 0 });
+  });
+
+  it("excludes other URLs and other users' runs from the trend", async () => {
+    const result = await getAuditRecord("u-t", "t4");
+    // Neither o1's 9 nodes (other URL) nor x1's 6 (other user, same URL)
+    // appear in any point.
+    expect(result!.trend.map((p) => p.total)).toEqual([3, 4, 0]);
+  });
+
+  it("loads the viewed run's own violations", async () => {
+    const result = await getAuditRecord("u-t", "t3");
+    expect(result!.record.violations).toHaveLength(1);
+    expect(result!.record.violations[0]!.nodes).toHaveLength(4);
+  });
+
+  it("returns undefined for a missing or another user's audit", async () => {
+    expect(await getAuditRecord("u-t", "nope")).toBeUndefined();
+    expect(await getAuditRecord("u-t", "x1")).toBeUndefined();
   });
 });
