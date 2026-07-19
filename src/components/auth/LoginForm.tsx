@@ -46,6 +46,16 @@ export function LoginForm() {
 
   async function onSocial(provider: "google" | "github") {
     setError(null);
+    // GitHub is registered as a genericOAuth provider, not a built-in social
+    // provider — see src/lib/auth.ts for why — so it needs the matching
+    // client call.
+    if (provider === "github") {
+      await authClient.signIn.oauth2({
+        providerId: "github",
+        callbackURL: "/dashboard",
+      });
+      return;
+    }
     await authClient.signIn.social({
       provider,
       callbackURL: "/dashboard",
