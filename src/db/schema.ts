@@ -23,6 +23,9 @@ export const user = pgTable("user", {
   image: text("image"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  // Stripe customer id — kept off the session cookie payload (not an
+  // additionalField); billing PII stays out of src/lib/session.ts.
+  stripeCustomerId: text("stripeCustomerId").unique(),
 });
 
 export const session = pgTable("session", {
@@ -126,3 +129,52 @@ export const violation = pgTable(
   // automatically.
   (t) => [index("violation_audit_idx").on(t.auditId)],
 );
+
+// Mirror of the user's Stripe subscription. Free users have NO row — never a
+// synthetic none-status placeholder. `plan` is the product purchased from the price id
+// ("free" / "pro"), NOT the current entitlement; entitlement is always derived
+// via effectivePlan() in src/lib/entitlements.ts. One personal mirror per user.
+export const subscription = pgTable(
+  "subscription",
+  {
+    id: text("id").primaryKey(), // our UUID, stable across resubscribes
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    stripeSubscriptionId: text("stripeSubscriptionId").notNull().unique(),
+    stripePriceId: text("stripePriceId").notNull(),
+    plan: text("plan").$type<"free" | "pro">().notNull(),
+    status: text("status")
+      .$type<
+        | "active"
+        | "trialing"
+        | "past_due"
+        | "canceled"
+        | "unpaid"
+        | "incomplete"
+        | "incomplete_expired"
+        | "paused"
+      >()
+      .notNull(),
+    currentPeriodStart: timestamp("currentPeriodStart"),
+    currentPeriodEnd: timestamp("currentPeriodEnd"),
+    cancelAtPeriodEnd: boolean("cancelAtPeriodEnd").notNull().default(false),
+    canceledAt: timestamp("canceledAt"),
+    interval: text("interval").$type<"month" | "year" | null>(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("subscription_user_uidx").on(t.userId),
+    // stripeSubscriptionId already .unique() — no second index
+  ],
+);
+
+// Processed Stripe webhook events, keyed by Stripe's event id for idempotency.
+// The row is inserted in the same DB transaction as the applied change (wiring
+// lands in plan 038); this unit only creates the table.
+export const stripeEvent = pgTable("stripe_event", {
+  id: text("id").primaryKey(), // evt_...
+  type: text("type").notNull(),
+  processedAt: timestamp("processedAt").notNull().defaultNow(),
+});

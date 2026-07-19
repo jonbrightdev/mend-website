@@ -22,6 +22,13 @@
       "when": 1784317106211,
       "tag": "0002_nostalgic_bruce_banner",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784486736065,
+      "tag": "0003_ordinary_expediter",
+      "breakpoints": true
     }
   ]
 }
