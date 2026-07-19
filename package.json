@@ -29,7 +29,8 @@
     "nitro": "npm:nitro-nightly@3.0.1-20260715-190547-7af4fee3",
     "pg": "^8.21.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "stripe": "^22.3.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.4",
