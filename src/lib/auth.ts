@@ -2,8 +2,10 @@ import "@tanstack/react-start/server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { genericOAuth, magicLink } from "better-auth/plugins";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { user } from "@/db/schema";
 import { sendMail } from "@/lib/mailer";
 
 // Social providers are added only when both credentials are present; magic
@@ -16,6 +18,62 @@ const githubEnabled = Boolean(
   process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET,
 );
 const magicLinkEnabled = import.meta.env.VITE_AUTH_MAGIC_LINK === "true";
+
+// Statuses that still hold a customer's billing method / entitlement and so
+// need an explicit cancel before we delete the account. Skips subscriptions
+// already terminal (canceled / incomplete_expired) — canceling those again
+// would just error against Stripe for no benefit.
+const CANCELABLE_SUBSCRIPTION_STATUSES: ReadonlySet<string> = new Set([
+  "active",
+  "trialing",
+  "past_due",
+  "unpaid",
+  "incomplete",
+  "paused",
+]);
+
+/**
+ * Fail-closed Stripe cleanup run before Better Auth deletes the account (see
+ * plans/pricing-stripe-design.md §Account delete). The session user does not
+ * carry stripeCustomerId (kept off the session payload), so it's loaded here
+ * with an explicit Drizzle query. A free user (no Stripe customer) returns
+ * immediately — delete proceeds normally. A Pro user's cancel/delete failing
+ * against Stripe throws, which aborts the account delete: we'd rather block
+ * deletion and let the user retry than silently leave an orphaned paid
+ * subscription with no Mend account attached to it.
+ */
+export async function cleanupStripeBeforeDelete(sessionUser: { id: string }): Promise<void> {
+  const [row] = await db
+    .select({ stripeCustomerId: user.stripeCustomerId })
+    .from(user)
+    .where(eq(user.id, sessionUser.id))
+    .limit(1);
+  if (!row?.stripeCustomerId) return; // free path: nothing to clean up
+
+  try {
+    // Loaded lazily: auth.ts is imported by nearly every server module (and
+    // test suite), while @/lib/stripe constructs its client at import time and
+    // throws without STRIPE_SECRET_KEY. Only this paid path needs it — and a
+    // missing key here still fails closed via this catch.
+    const { stripe } = await import("@/lib/stripe");
+    const subs = await stripe.subscriptions.list({
+      customer: row.stripeCustomerId,
+      status: "all",
+    });
+    await Promise.all(
+      subs.data
+        .filter((s) => CANCELABLE_SUBSCRIPTION_STATUSES.has(s.status))
+        .map((s) => stripe.subscriptions.cancel(s.id)),
+    );
+    // Also strips PII (email, name) from Stripe once nothing is billing.
+    await stripe.customers.del(row.stripeCustomerId);
+  } catch (e) {
+    console.error("stripe cleanup failed before account delete", e);
+    throw new Error(
+      "Could not cancel your subscription before deleting the account. Please try again or contact support.",
+    );
+  }
+}
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
@@ -50,8 +108,9 @@ export const auth = betterAuth({
   // Lets a signed-in user delete their own account from the account page.
   // Email+password users re-verify with their password on the client call; the
   // database cascades (audit→violation, apiKey, session, account) clear the rest.
+  // beforeDelete fails closed for Pro users — see cleanupStripeBeforeDelete.
   user: {
-    deleteUser: { enabled: true },
+    deleteUser: { enabled: true, beforeDelete: cleanupStripeBeforeDelete },
   },
   socialProviders: {
     ...(googleEnabled
