@@ -7,7 +7,7 @@
    Mirrors the dashboard-fns / dashboard-queries split.
    ============================================================ */
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { account, apiKey } from "@/db/schema";
 import { getUserEntitlements } from "@/lib/billing-queries";
@@ -35,6 +35,19 @@ export async function listKeysFor(userId: string): Promise<ApiKeyRow[]> {
     lastUsedAt: r.lastUsedAt?.toISOString() ?? null,
     revokedAt: r.revokedAt?.toISOString() ?? null,
   }));
+}
+
+// Whether the user has at least one non-revoked key — the dashboard uses this
+// to decide if the "Connect extension" CTA still earns its slot. Deliberately
+// a LIMIT 1 existence check rather than counting through listKeysFor: the
+// answer is a boolean and the dashboard loader is on the critical path.
+export async function hasActiveKey(userId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: apiKey.id })
+    .from(apiKey)
+    .where(and(eq(apiKey.userId, userId), isNull(apiKey.revokedAt)))
+    .limit(1);
+  return rows.length > 0;
 }
 
 // The Pro ceiling, which is also what legacy free gets while

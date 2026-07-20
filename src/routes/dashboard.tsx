@@ -22,13 +22,17 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
-  const { user, audits, runDates } = Route.useLoaderData();
+  const { user, audits, runDates, hasActiveKey } = Route.useLoaderData();
   return (
     <MarketingShell
       current="dashboard"
       account={{ name: user.name, email: user.email }}
     >
-      <DashboardClient audits={audits} runDates={runDates} />
+      <DashboardClient
+        audits={audits}
+        runDates={runDates}
+        hasActiveKey={hasActiveKey}
+      />
     </MarketingShell>
   );
 }

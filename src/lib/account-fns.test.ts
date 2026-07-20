@@ -145,6 +145,46 @@ describe("assertKeyQuota", () => {
   });
 });
 
+// hasActiveKey drives the dashboard's connect-extension CTA. Same "@/db"
+// binding note as the block below: reuse the suite db when it exists.
+describe("hasActiveKey", () => {
+  let hasActiveKey: (userId: string) => Promise<boolean>;
+
+  beforeAll(async () => {
+    db ??= await createTestDb();
+    hasActiveKey = (await import("@/lib/account-queries")).hasActiveKey;
+  });
+
+  it("is false for a user with no keys", async () => {
+    await seedUser("hak-nokeys");
+
+    await expect(hasActiveKey("hak-nokeys")).resolves.toBe(false);
+  });
+
+  it("is false when every key is revoked", async () => {
+    await seedUser("hak-revoked");
+    await seedKeys("hak-revoked", 2, true);
+
+    await expect(hasActiveKey("hak-revoked")).resolves.toBe(false);
+  });
+
+  it("is true with at least one active key", async () => {
+    await seedUser("hak-active");
+    await seedKeys("hak-active", 1, true);
+    await seedKeys("hak-active", 1, false);
+
+    await expect(hasActiveKey("hak-active")).resolves.toBe(true);
+  });
+
+  it("does not see another user's active key", async () => {
+    await seedUser("hak-owner");
+    await seedUser("hak-other");
+    await seedKeys("hak-other", 1);
+
+    await expect(hasActiveKey("hak-owner")).resolves.toBe(false);
+  });
+});
+
 // userHasPassword drives the delete-account UI branch: OAuth-only users have
 // no "credential" account row and must not be asked for a password. The "@/db"
 // binding is fixed at the module's first import, so this reuses the suite db

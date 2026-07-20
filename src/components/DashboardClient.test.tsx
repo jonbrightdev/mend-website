@@ -78,8 +78,16 @@ const about: AuditRecord = {
 
 const runDates = ["2026-07-10", "2026-07-11"];
 
-function renderDashboard(audits: AuditRecord[]) {
-  return render(<DashboardClient audits={audits} runDates={runDates} />);
+// Existing cases pass hasActiveKey: true — they assert filtering behavior and
+// should not also see the connect CTA. The CTA's own cases set it explicitly.
+function renderDashboard(audits: AuditRecord[], hasActiveKey = true) {
+  return render(
+    <DashboardClient
+      audits={audits}
+      runDates={runDates}
+      hasActiveKey={hasActiveKey}
+    />,
+  );
 }
 
 describe("DashboardClient", () => {
@@ -162,5 +170,19 @@ describe("DashboardClient", () => {
     await user.click(screen.getByRole("button", { name: /critical/i }));
 
     expect(screen.getByText(/no pages match this filter/i)).toBeInTheDocument();
+  });
+
+  it("offers the connect-extension CTA when no active key exists", () => {
+    renderDashboard([pricing, about], false);
+    expect(
+      screen.getByRole("link", { name: /connect extension/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("drops the connect-extension CTA once a key is active", () => {
+    renderDashboard([pricing, about], true);
+    expect(
+      screen.queryByRole("link", { name: /connect extension/i }),
+    ).not.toBeInTheDocument();
   });
 });

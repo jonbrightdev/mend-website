@@ -8,13 +8,17 @@ import { createServerFn } from "@tanstack/react-start";
 import { redirect } from "@tanstack/react-router";
 import { currentSessionUser } from "@/lib/session";
 import { getDashboardData, getAuditRecord } from "@/lib/dashboard-queries";
+import { hasActiveKey } from "@/lib/account-queries";
 
 export const fetchDashboard = createServerFn({ method: "GET" }).handler(
   async () => {
     const user = await currentSessionUser();
     if (!user) throw redirect({ to: "/login" });
-    const { audits, runDates } = await getDashboardData(user.id);
-    return { user, audits, runDates };
+    const [{ audits, runDates }, connected] = await Promise.all([
+      getDashboardData(user.id),
+      hasActiveKey(user.id),
+    ]);
+    return { user, audits, runDates, hasActiveKey: connected };
   },
 );
 

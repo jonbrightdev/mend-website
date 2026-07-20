@@ -21,6 +21,9 @@ type Layout = "overview" | "sidebar";
 interface Props {
   audits: AuditRecord[];
   runDates: string[];
+  // False only while the account holds no non-revoked key — revoking every key
+  // brings the CTA back, since the extension is disconnected again.
+  hasActiveKey: boolean;
 }
 
 // --------------- Small helpers ---------------------------------------
@@ -88,7 +91,7 @@ function EmptyState() {
 
 // --------------- Main dashboard client -------------------------------
 
-export function DashboardClient({ audits, runDates }: Props) {
+export function DashboardClient({ audits, runDates, hasActiveKey }: Props) {
   const [layout, setLayout] = useState<Layout>("overview");
   const [scope, setScope] = useState<string>("all");
   const [activeImpacts, setActiveImpacts] = useState<Set<Impact>>(new Set());
@@ -213,9 +216,11 @@ export function DashboardClient({ audits, runDates }: Props) {
             Last synced {lastAudit ? relTime(lastAudit.scannedAt) : "—"} · {audits.length} page{audits.length !== 1 ? "s" : ""} · {totalViolations(audits)} open violation{totalViolations(audits) !== 1 ? "s" : ""}
           </p>
         </div>
-        <Link className="btn btn--ghost" to="/account">
-          Connect extension
-        </Link>
+        {!hasActiveKey && (
+          <Link className="btn btn--ghost" to="/account">
+            Connect extension
+          </Link>
+        )}
       </div>
 
       {/* Main toolbar: search + scope + layout */}
