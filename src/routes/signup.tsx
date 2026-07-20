@@ -3,11 +3,19 @@ import { MarketingShell } from "@/components/MarketingShell";
 import { Pip } from "@/components/Pip";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { getSessionUser } from "@/lib/session-fns";
+import { validateAuthSearch } from "@/lib/auth-search";
 
 export const Route = createFileRoute("/signup")({
-  // Already signed in? Skip the form and go straight to the dashboard.
-  beforeLoad: async () => {
-    if (await getSessionUser()) throw redirect({ to: "/dashboard" });
+  // `?from=extension` — the Mend extension's post-audit prompt opens this page
+  // with it. See src/lib/auth-search.ts for why it is a flag, not a URL.
+  validateSearch: validateAuthSearch,
+  // Already signed in? Skip the form. Extension arrivals still need a key, so
+  // send them to /account rather than an empty dashboard.
+  beforeLoad: async ({ search }) => {
+    if (await getSessionUser())
+      throw search.from === "extension"
+        ? redirect({ to: "/account", search: { from: "extension" as const } })
+        : redirect({ to: "/dashboard" });
   },
   head: () => ({
     meta: [
@@ -23,6 +31,7 @@ export const Route = createFileRoute("/signup")({
 });
 
 function SignupPage() {
+  const { from } = Route.useSearch();
   return (
     <MarketingShell current="signup">
       <section className="section auth" aria-labelledby="auth-h">
@@ -90,7 +99,7 @@ function SignupPage() {
           </div>
 
           <div className="auth-card">
-            <SignupForm />
+            <SignupForm fromExtension={from === "extension"} />
           </div>
         </div>
       </section>

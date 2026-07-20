@@ -70,6 +70,7 @@ function renderAccount(
     hasPassword?: boolean;
     keyQuota?: KeyQuota;
     billing?: Partial<BillingSummary>;
+    fromExtension?: boolean;
   } = {},
 ) {
   return render(
@@ -78,6 +79,7 @@ function renderAccount(
       hasPassword={props.hasPassword ?? true}
       keyQuota={props.keyQuota ?? { active: 0, max: 20 }}
       billing={billingProps(props.billing)}
+      fromExtension={props.fromExtension ?? false}
     />,
   );
 }
@@ -385,5 +387,54 @@ describe("AccountClient — danger zone", () => {
     await user.click(screen.getByRole("button", { name: /permanently delete account/i }));
 
     expect(authClient.deleteUser).toHaveBeenCalledWith({});
+  });
+});
+
+describe("AccountClient — extension handoff (?from=extension)", () => {
+  it("shows the 'One step left' callout and focuses the Connect panel", () => {
+    renderAccount({ fromExtension: true });
+
+    expect(screen.getByText(/one step left/i)).toBeInTheDocument();
+    // Focus lands on the section, not the button, so the heading is announced.
+    const panel = screen.getByRole("region", { name: /connect the mend extension/i });
+    expect(panel).toHaveFocus();
+  });
+
+  it("does neither without the flag", () => {
+    renderAccount();
+
+    expect(screen.queryByText(/one step left/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: /connect the mend extension/i }),
+    ).not.toHaveFocus();
+  });
+
+  it("adds the extension-pickup sentence to the key reveal", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createApiKey).mockResolvedValue({
+      key: "mend_secret_abc",
+      keys: [key()],
+    });
+    renderAccount({ fromExtension: true });
+
+    await user.click(screen.getByRole("button", { name: /generate a key/i }));
+
+    expect(screen.getByText(/already picked this key up/i)).toBeInTheDocument();
+    // The manual fallback stays — the signup browser may not be the one with
+    // the extension installed.
+    expect(screen.getByLabelText(/api key/i)).toHaveValue("mend_secret_abc");
+  });
+
+  it("leaves the key reveal unchanged without the flag", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createApiKey).mockResolvedValue({
+      key: "mend_secret_abc",
+      keys: [key()],
+    });
+    renderAccount();
+
+    await user.click(screen.getByRole("button", { name: /generate a key/i }));
+
+    expect(screen.queryByText(/already picked this key up/i)).not.toBeInTheDocument();
   });
 });

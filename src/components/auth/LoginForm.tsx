@@ -9,7 +9,10 @@ const errorStyle = {
   fontWeight: 600,
 } as const;
 
-export function LoginForm() {
+export function LoginForm({ fromExtension = false }: { fromExtension?: boolean }) {
+  // Same destination rule as SignupForm — an existing user who came from the
+  // extension prompt still needs a key (see plan 047).
+  const destination = fromExtension ? "/account?from=extension" : "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -41,7 +44,7 @@ export function LoginForm() {
       );
       return;
     }
-    window.location.href = "/dashboard";
+    window.location.href = destination;
   }
 
   async function onSocial(provider: "google" | "github") {
@@ -52,13 +55,13 @@ export function LoginForm() {
     if (provider === "github") {
       await authClient.signIn.oauth2({
         providerId: "github",
-        callbackURL: "/dashboard",
+        callbackURL: destination,
       });
       return;
     }
     await authClient.signIn.social({
       provider,
-      callbackURL: "/dashboard",
+      callbackURL: destination,
     });
   }
 
@@ -72,7 +75,7 @@ export function LoginForm() {
     setPending(true);
     const { error: linkError } = await authClient.signIn.magicLink({
       email: value,
-      callbackURL: "/dashboard",
+      callbackURL: destination,
     });
     setPending(false);
     if (linkError) {
@@ -225,7 +228,13 @@ export function LoginForm() {
       )}
 
       <p className="auth-foot">
-        New to Mend? <Link to="/signup">Create an account</Link>
+        New to Mend?{" "}
+        <Link
+          to="/signup"
+          search={fromExtension ? { from: "extension" as const } : {}}
+        >
+          Create an account
+        </Link>
       </p>
     </div>
   );

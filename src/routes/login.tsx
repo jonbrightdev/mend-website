@@ -2,11 +2,20 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { getSessionUser } from "@/lib/session-fns";
+import { validateAuthSearch } from "@/lib/auth-search";
 
 export const Route = createFileRoute("/login")({
-  // Already signed in? There's nothing to log into — go to the dashboard.
-  beforeLoad: async () => {
-    if (await getSessionUser()) throw redirect({ to: "/dashboard" });
+  // Mirrors /signup: `?from=extension` is preserved across the signup↔login
+  // links, so an existing user who arrived from the extension also lands on
+  // /account.
+  validateSearch: validateAuthSearch,
+  // Already signed in? There's nothing to log into — go to the dashboard,
+  // or to /account when the extension sent them here for a key.
+  beforeLoad: async ({ search }) => {
+    if (await getSessionUser())
+      throw search.from === "extension"
+        ? redirect({ to: "/account", search: { from: "extension" as const } })
+        : redirect({ to: "/dashboard" });
   },
   head: () => ({
     meta: [
@@ -22,6 +31,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const { from } = Route.useSearch();
   return (
     <MarketingShell current="login">
       <section className="section auth" aria-labelledby="auth-h">
@@ -78,7 +88,7 @@ function LoginPage() {
           </div>
 
           <div className="auth-card">
-            <LoginForm />
+            <LoginForm fromExtension={from === "extension"} />
           </div>
         </div>
       </section>

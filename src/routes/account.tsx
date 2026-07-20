@@ -2,8 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { AccountClient } from "@/components/AccountClient";
 import { fetchAccount } from "@/lib/account-fns";
+import { validateAuthSearch } from "@/lib/auth-search";
 
 export const Route = createFileRoute("/account")({
+  // Set by the signup/login handoff when the user arrived from the extension
+  // prompt — it only emphasizes the Connect panel, it never generates a key.
+  validateSearch: validateAuthSearch,
   loader: () => fetchAccount(),
   head: () => ({
     meta: [
@@ -20,6 +24,7 @@ export const Route = createFileRoute("/account")({
 
 function AccountPage() {
   const { user, keys, hasPassword, keyQuota, billing } = Route.useLoaderData();
+  const { from } = Route.useSearch();
   return (
     <MarketingShell
       current="account"
@@ -44,6 +49,7 @@ function AccountPage() {
           hasPassword={hasPassword}
           keyQuota={keyQuota}
           billing={billing}
+          fromExtension={from === "extension"}
         />
       </div>
     </MarketingShell>

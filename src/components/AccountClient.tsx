@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   createApiKey,
@@ -19,17 +19,27 @@ export function AccountClient({
   hasPassword,
   keyQuota,
   billing,
+  fromExtension = false,
 }: {
   initialKeys: ApiKeyRow[];
   hasPassword: boolean;
   keyQuota: KeyQuota;
   billing: BillingSummary;
+  fromExtension?: boolean;
 }) {
   const [keys, setKeys] = useState<ApiKeyRow[]>(initialKeys);
   const [freshKey, setFreshKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const connectRef = useRef<HTMLElement>(null);
+
+  // Arriving from the extension prompt, the one remaining step is down in this
+  // panel. Move focus to the section (not the button) so screen-reader and
+  // keyboard users get the heading and its context, not a bare "Generate".
+  useEffect(() => {
+    if (fromExtension) connectRef.current?.focus();
+  }, [fromExtension]);
 
   // Recomputed from the server's own key list after every generate/revoke, so
   // the cap follows the list rather than the stale loader snapshot. Only `max`
@@ -96,7 +106,12 @@ export function AccountClient({
     <>
     <BillingPanel billing={billing} />
 
-    <section className="panel" aria-labelledby="connect-h">
+    <section
+      className="panel"
+      aria-labelledby="connect-h"
+      ref={connectRef}
+      tabIndex={-1}
+    >
       <div className="panel__head">
         <h2 id="connect-h">Connect the Mend extension</h2>
         {keyQuota.max !== null && (
@@ -111,6 +126,16 @@ export function AccountClient({
           audits to my dashboard”, and the audits you choose to save will appear
           here.
         </p>
+
+        {fromExtension && (
+          <div className="callout" style={{ margin: "1rem 0 1.4rem" }}>
+            <p>
+              <strong>One step left.</strong> Generate a key and the Mend
+              extension will pick it up automatically — then use Save on any
+              audit.
+            </p>
+          </div>
+        )}
 
         <div className="callout" style={{ margin: "1rem 0 1.4rem" }}>
           <p>
@@ -134,6 +159,15 @@ export function AccountClient({
               <strong>Your new key.</strong> Copy it now — for your security it
               won&apos;t be shown again.
             </p>
+            {fromExtension && (
+              // The postMessage handoff (plan 035) only reaches an extension in
+              // *this* browser — the copy field stays for anyone who signed up
+              // somewhere else.
+              <p>
+                If the extension is installed in this browser, it has already
+                picked this key up — check the panel for the Save button.
+              </p>
+            )}
             <div className="key-reveal__row">
               <input
                 className="input"

@@ -9,7 +9,10 @@ const errorStyle = {
   fontWeight: 600,
 } as const;
 
-export function SignupForm() {
+export function SignupForm({ fromExtension = false }: { fromExtension?: boolean }) {
+  // Extension arrivals need an API key, not an empty dashboard — land them on
+  // /account, where the Connect panel is highlighted (see plan 047).
+  const destination = fromExtension ? "/account?from=extension" : "/dashboard";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,7 +46,7 @@ export function SignupForm() {
       );
       return;
     }
-    window.location.href = "/dashboard";
+    window.location.href = destination;
   }
 
   async function onSocial(provider: "google" | "github") {
@@ -54,13 +57,13 @@ export function SignupForm() {
     if (provider === "github") {
       await authClient.signIn.oauth2({
         providerId: "github",
-        callbackURL: "/dashboard",
+        callbackURL: destination,
       });
       return;
     }
     await authClient.signIn.social({
       provider,
-      callbackURL: "/dashboard",
+      callbackURL: destination,
     });
   }
 
@@ -74,7 +77,7 @@ export function SignupForm() {
     setPending(true);
     const { error: linkError } = await authClient.signIn.magicLink({
       email: value,
-      callbackURL: "/dashboard",
+      callbackURL: destination,
     });
     setPending(false);
     if (linkError) {
@@ -241,7 +244,13 @@ export function SignupForm() {
       )}
 
       <p className="auth-foot">
-        Already have an account? <Link to="/login">Log in</Link>
+        Already have an account?{" "}
+        <Link
+          to="/login"
+          search={fromExtension ? { from: "extension" as const } : {}}
+        >
+          Log in
+        </Link>
       </p>
     </div>
   );
