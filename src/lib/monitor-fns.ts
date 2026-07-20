@@ -15,10 +15,14 @@ import { currentSessionUser } from "@/lib/session";
 import {
   addMonitor,
   deleteMonitor,
+  findMonitor,
   listMonitors,
   MAX_MONITORS,
   setPaused,
 } from "@/lib/monitor-queries";
+import { runMonitor } from "@/lib/run-monitor";
+
+const RUN_NOW_COOLDOWN_MS = 10 * 60 * 1000;
 
 // Only a *type* re-export is safe here. Re-exporting a value from
 // monitor-queries (MAX_MONITORS, say) survives into the client bundle and
@@ -68,6 +72,33 @@ export const toggleMonitor = createServerFn({ method: "POST" })
     const user = await currentSessionUser();
     if (!user) throw redirect({ to: "/login" });
     await setPaused(user.id, id, paused);
+    return { monitors: await listMonitors(user.id) };
+  });
+
+// A manual scan, which is also the deploy-verification hook for the scan
+// engine: if Chromium isn't available in the container, this is where it shows
+// up — as `lastError` on the row, not as a crash.
+export const runMonitorNow = createServerFn({ method: "POST" })
+  .validator((id: unknown): string => {
+    if (typeof id !== "string" || id.length === 0) {
+      throw new Error("id is required");
+    }
+    return id;
+  })
+  .handler(async ({ data: id }) => {
+    const user = await currentSessionUser();
+    if (!user) throw redirect({ to: "/login" });
+
+    const target = await findMonitor(user.id, id);
+    if (!target) throw new Error("That monitored page no longer exists.");
+
+    // A browser launch is expensive and a monitor is a daily job — this button
+    // is a convenience, not a load generator.
+    if (target.lastRunAt && Date.now() - target.lastRunAt.getTime() < RUN_NOW_COOLDOWN_MS) {
+      throw new Error("This page was scanned in the last few minutes. Try again shortly.");
+    }
+
+    await runMonitor(target);
     return { monitors: await listMonitors(user.id) };
   });
 

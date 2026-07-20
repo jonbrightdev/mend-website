@@ -11,6 +11,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { monitor } from "@/db/schema";
 import { initialRunAt } from "@/lib/monitor-schedule";
+import { assertScannableUrl } from "@/lib/scan/url-guard";
 
 // Monitor metadata safe to send to the client. Dates are ISO strings, like
 // ApiKeyRow — server fn results cross a JSON boundary, so Date would arrive
@@ -73,6 +74,10 @@ export async function addMonitor(userId: string, url: string): Promise<MonitorRo
   if (trimmed.length > MAX_URL_LENGTH) {
     throw new Error("That URL is too long to monitor.");
   }
+  // Refuse private/loopback targets at the point of *adding*, not just before
+  // scanning, so the user finds out immediately rather than via a lastError a
+  // day later. The scanner re-checks anyway — this is not the only gate.
+  assertScannableUrl(trimmed);
 
   // Counts paused monitors too — a paused monitor still occupies a slot, and
   // the cap is about how many pages an account tracks, not how many run today.
@@ -104,6 +109,20 @@ export async function addMonitor(userId: string, url: string): Promise<MonitorRo
     }
     throw e;
   }
+}
+
+// One monitor, owner-scoped. Returns the raw row (Dates intact) because its
+// caller is the scan orchestrator, not the client.
+export async function findMonitor(
+  userId: string,
+  id: string,
+): Promise<MonitorRecord | undefined> {
+  const rows = await db
+    .select()
+    .from(monitor)
+    .where(and(eq(monitor.id, id), eq(monitor.userId, userId)))
+    .limit(1);
+  return rows[0];
 }
 
 // Every mutation below is scoped `where (userId AND id)`. That pair is the

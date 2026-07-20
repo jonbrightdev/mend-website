@@ -1,0 +1,116 @@
+/* ============================================================
+   Headless-Chromium scan: load a page, run axe-core in it, and
+   return a payload in the exact shape /api/ingest accepts.
+
+   playwright-core (not "playwright") on purpose: the fat package
+   downloads its own browsers in a postinstall step, which does not
+   survive Railway's Nixpacks build. We launch the system Chromium
+   instead — see nixpacks.toml.
+
+   axe-core's source is inlined at build time via Vite's ?raw
+   import, so the running server never reads node_modules.
+   ============================================================ */
+
+import { chromium } from "playwright-core";
+import axeSource from "axe-core/axe.min.js?raw";
+import { parsePayload, type IngestPayload } from "@/lib/ingest-payload";
+import { axeToIssues, type AxeViolation } from "@/lib/scan/normalize";
+import { assertScannableUrl } from "@/lib/scan/url-guard";
+
+const NAV_TIMEOUT_MS = 45_000;
+// A human running the extension does it after the page has settled; give
+// late-loading widgets the same courtesy before asking axe what it sees.
+const SETTLE_MS = 1_000;
+const VIEWPORT = { width: 1280, height: 800 };
+
+// Self-identifying, so a site owner who sees us in their logs can find out who
+// we are and how to stop us.
+const USER_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 MendMonitor/1.0 (+https://mend.dev/support)";
+
+/** The Chromium binary to launch: CHROMIUM_PATH, else whatever is on PATH. */
+export function chromiumPath(): string {
+  return process.env.CHROMIUM_PATH || "chromium";
+}
+
+/**
+ * Scans one page and returns a validated ingest payload.
+ *
+ * The returned `url` is the *requested* one, not the post-redirect address:
+ * the monitor row and its audit rows are joined on that url, and a site that
+ * redirects would otherwise scatter one page's history across two entries.
+ */
+export async function scanPage(url: string): Promise<IngestPayload> {
+  assertScannableUrl(url);
+  return runScan(url);
+}
+
+/**
+ * The browser work, without the SSRF guard.
+ *
+ * Exported **only** for the env-gated e2e test, which must scan a fixture
+ * server on 127.0.0.1 — an address `scanPage` refuses by design. Never call
+ * this from application code: `scanPage` is the entry point, and the guard is
+ * the reason it exists.
+ */
+export async function scanFixtureForTest(url: string): Promise<IngestPayload> {
+  return runScan(url);
+}
+
+async function runScan(url: string): Promise<IngestPayload> {
+  const browser = await chromium.launch({
+    executablePath: chromiumPath(),
+    headless: true,
+    // The Railway container has no user namespace for Chromium's sandbox, so
+    // it cannot start with it enabled. Acceptable because the only thing this
+    // browser ever does is load a page and read axe's findings — but if
+    // Railway ever supports user-namespace sandboxing, drop this.
+    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  });
+
+  const startedAt = Date.now();
+  try {
+    const context = await browser.newContext({
+      viewport: VIEWPORT,
+      userAgent: USER_AGENT,
+    });
+    const page = await context.newPage();
+
+    await page.goto(url, { waitUntil: "load", timeout: NAV_TIMEOUT_MS });
+    await page.waitForTimeout(SETTLE_MS);
+
+    const pageTitle = await page.title();
+
+    await page.addScriptTag({ content: axeSource });
+    const results = await page.evaluate(async () => {
+      // axe is attached to the page's window by the script tag above.
+      const axe = (window as unknown as { axe: { run: (ctx: Document, opts: unknown) => Promise<unknown> } }).axe;
+      return (await axe.run(document, { resultTypes: ["violations"] })) as {
+        violations: AxeViolation[];
+        passes?: unknown[];
+      };
+    });
+
+    const violations = results.violations ?? [];
+
+    // parsePayload is the ingest contract. Running our own output through it
+    // means the scanner can never produce something the route would reject —
+    // a divergence would fail here rather than silently store a bad row.
+    return parsePayload({
+      url,
+      pageTitle,
+      startedAt,
+      durationMs: Date.now() - startedAt,
+      // resultTypes: ["violations"] means axe returns full detail only for
+      // violations; passes still arrive as a (thin) array, so the sum is the
+      // honest count of rules that produced a result.
+      totalChecks: results.passes ? violations.length + results.passes.length : undefined,
+      partial: false,
+      issues: axeToIssues(violations),
+    });
+  } finally {
+    // Always — a leaked Chromium on a single-node deploy is a memory leak that
+    // outlives the request.
+    await browser.close();
+  }
+}

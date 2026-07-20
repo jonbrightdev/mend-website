@@ -14,10 +14,16 @@ vi.mock("@/lib/monitor-fns", () => ({
   createMonitor: vi.fn(),
   toggleMonitor: vi.fn(),
   removeMonitor: vi.fn(),
+  runMonitorNow: vi.fn(),
 }));
 
 import { MonitorsClient } from "./MonitorsClient";
-import { createMonitor, removeMonitor, toggleMonitor } from "@/lib/monitor-fns";
+import {
+  createMonitor,
+  removeMonitor,
+  runMonitorNow,
+  toggleMonitor,
+} from "@/lib/monitor-fns";
 import type { MonitorRow } from "@/lib/monitor-queries";
 
 const HOUR = 60 * 60 * 1000;
@@ -39,6 +45,7 @@ beforeEach(() => {
   vi.mocked(createMonitor).mockReset();
   vi.mocked(toggleMonitor).mockReset();
   vi.mocked(removeMonitor).mockReset();
+  vi.mocked(runMonitorNow).mockReset();
 });
 
 function renderMonitors(monitors: MonitorRow[], maxMonitors = 10) {
@@ -136,6 +143,44 @@ describe("MonitorsClient", () => {
 
     await user.click(screen.getByRole("button", { name: /confirm removing/i }));
     expect(removeMonitor).toHaveBeenCalledWith({ data: "m1" });
+  });
+
+  it("scans on demand and shows the refreshed row", async () => {
+    const user = userEvent.setup();
+    vi.mocked(runMonitorNow).mockResolvedValue({
+      monitors: [
+        monitorRow({ lastRunAt: new Date(Date.now() - 60_000).toISOString() }),
+      ],
+    });
+
+    renderMonitors([monitorRow()]);
+    await user.click(screen.getByRole("button", { name: /run now/i }));
+
+    expect(runMonitorNow).toHaveBeenCalledWith({ data: "m1" });
+    // "Scheduled" gives way to a real result once a run has happened.
+    expect(await screen.findByText("OK")).toBeInTheDocument();
+  });
+
+  it("surfaces a failed scan's error on the row", async () => {
+    const user = userEvent.setup();
+    vi.mocked(runMonitorNow).mockResolvedValue({
+      monitors: [
+        monitorRow({
+          lastRunAt: new Date().toISOString(),
+          lastError: "page.goto: Timeout 45000ms exceeded",
+        }),
+      ],
+    });
+
+    renderMonitors([monitorRow()]);
+    await user.click(screen.getByRole("button", { name: /run now/i }));
+
+    expect(await screen.findByText(/timeout 45000ms exceeded/i)).toBeInTheDocument();
+  });
+
+  it("does not offer an on-demand run for a paused monitor", () => {
+    renderMonitors([monitorRow({ pausedAt: "2026-07-19T12:00:00.000Z" })]);
+    expect(screen.getByRole("button", { name: /run now/i })).toBeDisabled();
   });
 
   it("disables the add button at the cap", () => {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   createMonitor,
   removeMonitor,
+  runMonitorNow,
   toggleMonitor,
   type MonitorRow,
 } from "@/lib/monitor-fns";
@@ -164,6 +165,21 @@ export function MonitorsClient({
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+                        <button
+                          className="btn btn--ghost"
+                          type="button"
+                          disabled={pending || m.pausedAt !== null}
+                          onClick={() =>
+                            run(
+                              () => runMonitorNow({ data: m.id }),
+                              "Couldn't scan that page. Please try again.",
+                            )
+                          }
+                        >
+                          {/* A real scan takes tens of seconds, so the busy
+                              state has to be honest about the wait. */}
+                          {pending ? "Working…" : "Run now"}
+                        </button>
                         <button
                           className="btn btn--ghost"
                           type="button"

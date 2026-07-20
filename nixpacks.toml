@@ -1,0 +1,14 @@
+# Chromium for the monitor scanner (plan 044). playwright-core launches the
+# system binary rather than downloading its own: the fat `playwright` package's
+# postinstall browser download does not survive the Nixpacks build, which is
+# why `playwright-core` is the dependency.
+#
+# `"..."` is Nixpacks' array-extension syntax — it is a hole filled by the
+# packages the Node provider auto-detected. Without it, this array *replaces*
+# them and the build loses node/pnpm entirely.
+#
+# The binary lands on PATH as `chromium`, which is src/lib/scan/scanner.ts's
+# fallback when CHROMIUM_PATH is unset. Set CHROMIUM_PATH locally to point at
+# an installed Chrome/Chromium instead.
+[phases.setup]
+nixPkgs = ["...", "chromium"]

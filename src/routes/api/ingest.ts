@@ -2,10 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { and, count, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
-import { apiKey, audit, violation } from "@/db/schema";
+import { apiKey, audit } from "@/db/schema";
 import { hashKey } from "@/lib/api-key";
-import { IngestError, parsePayload, groupViolations } from "@/lib/ingest-payload";
+import { IngestError, parsePayload } from "@/lib/ingest-payload";
 import type { IngestPayload } from "@/lib/ingest-payload";
+import { storeAuditRun, type StoreResult } from "@/lib/audit-store";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { getUserEntitlements } from "@/lib/billing-queries";
 import { PLAN_LIMITS, type PlanId } from "@/lib/entitlements";
@@ -205,37 +206,11 @@ export const Route = createFileRoute("/api/ingest")({
           }
         }
 
-        // Both writes go in one transaction: a half-written run would be
-        // permanent, since the retry hits the conflict path below and returns
-        // success without ever writing the missing violations.
-        const auditId = crypto.randomUUID();
-        let result: { duplicate: true } | { duplicate: false; count: number };
+        // The write itself lives in audit-store.ts, shared with the monitor
+        // scanner so both produce identical rows.
+        let result: StoreResult;
         try {
-          result = await db.transaction(async (tx) => {
-            const inserted = await tx
-              .insert(audit)
-              .values({
-                id: auditId,
-                userId,
-                url: payload.url,
-                pageTitle: payload.pageTitle,
-                scannedAt: payload.scannedAt,
-                durationMs: payload.durationMs,
-                totalChecks: payload.totalChecks,
-                partial: payload.partial,
-              })
-              .onConflictDoNothing()
-              .returning();
-
-            // Same (user, url, scannedAt) already stored: idempotent success.
-            if (inserted.length === 0) return { duplicate: true as const };
-
-            const violations = groupViolations(auditId, payload.issues);
-            if (violations.length > 0) {
-              await tx.insert(violation).values(violations);
-            }
-            return { duplicate: false as const, count: violations.length };
-          });
+          result = await storeAuditRun(userId, payload);
         } catch (e) {
           // Without this, the framework's bare 500 has no CORS headers and the
           // extension surfaces an opaque network error instead of our message.
@@ -256,7 +231,7 @@ export const Route = createFileRoute("/api/ingest")({
           console.error("ingest: retention purge failed", e);
         }
 
-        return json({ auditId, violations: result.count }, 201);
+        return json({ auditId: result.auditId, violations: result.count }, 201);
       },
     },
   },
