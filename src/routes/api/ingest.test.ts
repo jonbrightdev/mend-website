@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { createTestDb } from "@/test/db";
 import { hashKey } from "@/lib/api-key";
@@ -234,6 +234,8 @@ describe("POST /api/ingest rate limiting", () => {
     });
   });
 
+  // FREE_LIMITS_ENFORCED does not change the free rate ceiling (legacy free and
+  // enforced free are both 60/min), so these run at the default.
   it("allows 60 requests per minute and denies the 61st with 429 + Retry-After", async () => {
     const body = payload({ url: "https://example.com/rate-limit" });
 
@@ -292,5 +294,149 @@ describe("POST /api/ingest rate limiting", () => {
 
     const afterLimited = await db.select().from(apiKey).where(eq(apiKey.id, "k-ingest-order"));
     expect(afterLimited[0]!.lastUsedAt).toEqual(touched);
+  });
+
+  // Pro rides a separate limiter instance, so its budget is independent of the
+  // free one above as well as larger.
+  it("allows a pro subscriber 300 requests per minute and denies the 301st", async () => {
+    const PRO_KEY = "mend_test_key_pro_rate";
+    const PRO_USER_ID = "u-ingest-pro-rate";
+    await db.insert(user).values({
+      id: PRO_USER_ID,
+      name: "Pro Rate Test",
+      email: "pro-rate@example.com",
+    });
+    await db.insert(apiKey).values({
+      id: "k-ingest-pro-rate",
+      userId: PRO_USER_ID,
+      hashedKey: await hashKey(PRO_KEY),
+      name: "Pro rate test key",
+    });
+    const { seedProSubscription } = await import("@/lib/billing-queries");
+    await seedProSubscription(PRO_USER_ID);
+
+    // One body throughout: the first request stores the run and the remaining
+    // 299 come back as idempotent 200s. Both count against the limiter, which
+    // is what this measures — a free user would have 429'd at request 61.
+    const body = payload({ url: "https://example.com/pro-rate" });
+    for (let i = 0; i < 300; i++) {
+      const res = await post({ request: request(body, PRO_KEY) });
+      expect(res.status).toBeLessThan(429);
+    }
+
+    const res = await post({ request: request(body, PRO_KEY) });
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBeTruthy();
+  });
+});
+
+// The cap gates only rows that would be new. Duplicates are checked first and
+// stay 200 even at the cap, so the extension's retries never turn into 403s.
+describe("POST /api/ingest audit cap", () => {
+  const CAP_BASE = Date.parse("2026-06-01T00:00:00.000Z");
+
+  /** `count` stored runs for `userId`, at CAP_BASE + i seconds. */
+  async function seedAudits(userId: string, count: number) {
+    await db.insert(audit).values(
+      Array.from({ length: count }, (_, i) => ({
+        id: `a-${userId}-${i}`,
+        userId,
+        url: `https://example.com/cap-${i}`,
+        pageTitle: `Cap ${i}`,
+        scannedAt: new Date(CAP_BASE + i * 1000),
+      })),
+    );
+  }
+
+  /** A user at exactly the Free cap, with their own key so the shared
+      rate-limiter state can't leak between cases. */
+  async function seedUserAtCap(suffix: string, auditCount: number) {
+    const userId = `u-cap-${suffix}`;
+    const token = `mend_test_key_cap_${suffix}`;
+    await db.insert(user).values({
+      id: userId,
+      name: `Cap ${suffix}`,
+      email: `cap-${suffix}@example.com`,
+    });
+    await db.insert(apiKey).values({
+      id: `k-cap-${suffix}`,
+      userId,
+      hashedKey: await hashKey(token),
+      name: `Cap ${suffix} key`,
+    });
+    await seedAudits(userId, auditCount);
+    return { userId, token };
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("refuses a new run with 403 AUDIT_CAP once a free user is at 200", async () => {
+    vi.stubEnv("FREE_LIMITS_ENFORCED", "true");
+    const { token } = await seedUserAtCap("full", 200);
+
+    const res = await post({
+      request: request(
+        payload({ url: "https://example.com/over-the-cap", startedAt: CAP_BASE + 999_000 }),
+        token,
+      ),
+    });
+
+    expect(res.status).toBe(403);
+    // CORS must survive the new status, or the extension shows an opaque
+    // network error instead of the message below.
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    const body = (await res.json()) as { error: string; code: string };
+    expect(body.code).toBe("AUDIT_CAP");
+    expect(body.error).toContain("200");
+    expect(body.error).toMatch(/upgrade to Pro/i);
+  });
+
+  it("still returns 200 duplicate for an already-stored run at the cap", async () => {
+    vi.stubEnv("FREE_LIMITS_ENFORCED", "true");
+    const { token } = await seedUserAtCap("dupe", 200);
+
+    // Exactly the (url, startedAt) of a seeded run.
+    const res = await post({
+      request: request(
+        payload({ url: "https://example.com/cap-7", startedAt: CAP_BASE + 7000 }),
+        token,
+      ),
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ duplicate: true });
+  });
+
+  it("does not cap an unenforced free user holding more than 200 audits", async () => {
+    const { userId, token } = await seedUserAtCap("legacy", 250);
+
+    const res = await post({
+      request: request(
+        payload({ url: "https://example.com/legacy-new", startedAt: CAP_BASE + 999_000 }),
+        token,
+      ),
+    });
+
+    expect(res.status).toBe(201);
+    const stored = await db.select().from(audit).where(eq(audit.userId, userId));
+    expect(stored).toHaveLength(251);
+  });
+
+  it("lets a pro subscriber past the free cap", async () => {
+    vi.stubEnv("FREE_LIMITS_ENFORCED", "true");
+    const { userId, token } = await seedUserAtCap("pro", 200);
+    const { seedProSubscription } = await import("@/lib/billing-queries");
+    await seedProSubscription(userId);
+
+    const res = await post({
+      request: request(
+        payload({ url: "https://example.com/pro-new", startedAt: CAP_BASE + 999_000 }),
+        token,
+      ),
+    });
+
+    expect(res.status).toBe(201);
   });
 });

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { apiKey, audit, violation } from "@/db/schema";
@@ -7,6 +7,9 @@ import { hashKey } from "@/lib/api-key";
 import { IngestError, parsePayload, groupViolations } from "@/lib/ingest-payload";
 import type { IngestPayload } from "@/lib/ingest-payload";
 import { createRateLimiter } from "@/lib/rate-limit";
+import { getUserEntitlements } from "@/lib/billing-queries";
+import { PLAN_LIMITS, type PlanId } from "@/lib/entitlements";
+import { maybePurgeOldAudits } from "@/lib/retention";
 
 // Accepts the extension's AuditResult payload (../mend-a11y/src/lib/types.ts)
 // plus an optional pageTitle. Issues arrive flat (one per affected element)
@@ -30,7 +33,24 @@ const MAX_BODY_BYTES = 1_000_000;
 
 // Single-node deploy (railway.json runs one process), so an in-process
 // limiter is sufficient. Revisit if this ever runs on more than one node.
-const limiter = createRateLimiter({ limit: 60, windowMs: 60_000 });
+//
+// One limiter per plan rather than one limiter with a per-call limit: the
+// window state lives inside the limiter, so a single instance would have to
+// re-derive the ceiling on every check and a mid-window upgrade would compare
+// this minute's Free count against the Pro ceiling. Two instances mean an
+// upgrade simply starts a fresh Pro window, which is the accepted behaviour.
+const freeLimiter = createRateLimiter({
+  limit: PLAN_LIMITS.free.ingestPerMinute,
+  windowMs: 60_000,
+});
+const proLimiter = createRateLimiter({
+  limit: PLAN_LIMITS.pro.ingestPerMinute,
+  windowMs: 60_000,
+});
+
+function checkIngestRate(userId: string, plan: PlanId) {
+  return (plan === "pro" ? proLimiter : freeLimiter).check(userId);
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +61,16 @@ const CORS_HEADERS = {
 
 function json(data: unknown, status: number): Response {
   return Response.json(data, { status, headers: CORS_HEADERS });
+}
+
+// The extension renders `error` verbatim in its panel, so this is end-user
+// copy. It names the cap and the way out, and never implies the extension
+// itself is locked — scanning stays free and offline; only cloud storage caps.
+function auditCapMessage(entitlements: { plan: PlanId; maxStoredAudits: number }): string {
+  const cap = entitlements.maxStoredAudits.toLocaleString("en-US");
+  return entitlements.plan === "pro"
+    ? `You've reached the ${cap} saved audit limit. Delete older audits to save new ones.`
+    : `Free accounts can store up to ${cap} saved audits. Delete old audits or upgrade to Pro on the Pricing page.`;
 }
 
 // Pulls the bearer token from the Authorization header, if present and shaped
@@ -87,7 +117,11 @@ export const Route = createFileRoute("/api/ingest")({
         }
         const { userId, apiKeyId } = who;
 
-        const verdict = limiter.check(userId);
+        // One indexed read of the subscription mirror, before the limiter, so
+        // the plan is available for both the rate ceiling and the audit cap.
+        const entitlements = await getUserEntitlements(userId);
+
+        const verdict = checkIngestRate(userId, entitlements.plan);
         if (!verdict.ok) {
           return Response.json(
             { error: "Rate limit exceeded — try again in a minute." },
@@ -139,6 +173,38 @@ export const Route = createFileRoute("/api/ingest")({
           throw e;
         }
 
+        // Idempotency is checked *before* the cap, deliberately. The extension
+        // retries a run it isn't sure landed, and a user sitting at their cap
+        // would otherwise see those retries turn into hard 403s for a run that
+        // is already safely stored. Same key as the audit_user_url_scanned
+        // unique index, so this agrees with the conflict path below.
+        const [alreadyStored] = await db
+          .select({ id: audit.id })
+          .from(audit)
+          .where(
+            and(
+              eq(audit.userId, userId),
+              eq(audit.url, payload.url),
+              eq(audit.scannedAt, payload.scannedAt),
+            ),
+          )
+          .limit(1);
+        if (alreadyStored) {
+          return json({ duplicate: true }, 200);
+        }
+
+        // Only a would-be new row can exceed the cap. Infinity means legacy
+        // free (FREE_LIMITS_ENFORCED unset), where there is nothing to count.
+        if (Number.isFinite(entitlements.maxStoredAudits)) {
+          const [stored] = await db
+            .select({ total: count() })
+            .from(audit)
+            .where(eq(audit.userId, userId));
+          if ((stored?.total ?? 0) >= entitlements.maxStoredAudits) {
+            return json({ error: auditCapMessage(entitlements), code: "AUDIT_CAP" }, 403);
+          }
+        }
+
         // Both writes go in one transaction: a half-written run would be
         // permanent, since the retry hits the conflict path below and returns
         // success without ever writing the missing violations.
@@ -179,6 +245,15 @@ export const Route = createFileRoute("/api/ingest")({
 
         if (result.duplicate) {
           return json({ duplicate: true }, 200);
+        }
+
+        // Lazy retention: a successful new write is the only trigger, and the
+        // purge throttles itself to once a day per user. Never allowed to fail
+        // an ingest that already committed — the caller's audit is stored.
+        try {
+          await maybePurgeOldAudits(userId, entitlements.auditRetentionDays);
+        } catch (e) {
+          console.error("ingest: retention purge failed", e);
         }
 
         return json({ auditId, violations: result.count }, 201);

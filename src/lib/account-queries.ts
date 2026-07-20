@@ -10,6 +10,8 @@
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { account, apiKey } from "@/db/schema";
+import { getUserEntitlements } from "@/lib/billing-queries";
+import { PLAN_LIMITS } from "@/lib/entitlements";
 
 // Key metadata safe to send to the client — never the hash or the key itself.
 export interface ApiKeyRow {
@@ -35,15 +37,29 @@ export async function listKeysFor(userId: string): Promise<ApiKeyRow[]> {
   }));
 }
 
+// The Pro ceiling, which is also what legacy free gets while
+// FREE_LIMITS_ENFORCED is unset. Kept as a named export because tests and
+// callers read it, but it is *not* the authority — entitlements are, and this
+// re-exports their Pro number so the two can't drift apart.
+export const MAX_ACTIVE_KEYS = PLAN_LIMITS.pro.maxActiveApiKeys;
+
 // A leaked key is the blast radius here, and nobody legitimately runs 20
 // extensions. Counts active keys only, so revoking frees a slot. Exported so
 // the quota is testable without invoking the createServerFn wrapper.
-export const MAX_ACTIVE_KEYS = 20;
-
+//
+// Gates *new* keys only. A Free user who already holds more than the Free
+// limit — from before enforcement, or from a lapsed Pro subscription — keeps
+// every key they have; nothing here revokes. They simply can't add another
+// until they revoke down under the limit.
 export async function assertKeyQuota(userId: string): Promise<void> {
+  const { maxActiveApiKeys } = await getUserEntitlements(userId);
   const active = (await listKeysFor(userId)).filter((k) => !k.revokedAt);
-  if (active.length >= MAX_ACTIVE_KEYS) {
-    throw new Error("Key limit reached. Revoke an unused key first.");
+  if (active.length >= maxActiveApiKeys) {
+    throw new Error(
+      maxActiveApiKeys <= PLAN_LIMITS.free.maxActiveApiKeys
+        ? `Free accounts can have ${maxActiveApiKeys} active keys. Revoke one or upgrade to Pro.`
+        : "Key limit reached. Revoke an unused key first.",
+    );
   }
 }
 
