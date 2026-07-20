@@ -11,6 +11,7 @@ export type NavPage =
   | "login"
   | "signup"
   | "dashboard"
+  | "monitors"
   | "account";
 
 type Account = { name: string; email: string };
@@ -65,6 +66,12 @@ export function SiteHeader({
                 aria-current={current === "dashboard" ? "page" : undefined}
               >
                 Dashboard
+              </Link>
+              <Link
+                to="/monitors"
+                aria-current={current === "monitors" ? "page" : undefined}
+              >
+                Monitors
               </Link>
               <Link
                 to="/account"

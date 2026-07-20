@@ -170,6 +170,32 @@ export const subscription = pgTable(
   ],
 );
 
+// A URL the user asked us to track. The scheduler (plan 045) runs every
+// monitor whose nextRunAt has passed and pausedAt is null, stores the result
+// as a normal audit row, then re-rolls nextRunAt to a random instant in the
+// next UTC day (src/lib/monitor-schedule.ts). lastError is the last run's
+// failure message, cleared on success.
+export const monitor = pgTable(
+  "monitor",
+  {
+    id: text("id").primaryKey(),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    pausedAt: timestamp("pausedAt"),
+    nextRunAt: timestamp("nextRunAt").notNull(),
+    lastRunAt: timestamp("lastRunAt"),
+    lastError: text("lastError"),
+  },
+  (t) => [
+    uniqueIndex("monitor_user_url").on(t.userId, t.url),
+    // The scheduler's due-scan is a range query on nextRunAt.
+    index("monitor_next_run_idx").on(t.nextRunAt),
+  ],
+);
+
 // Processed Stripe webhook events, keyed by Stripe's event id for idempotency.
 // The row is inserted in the same DB transaction as the applied change (wiring
 // lands in plan 038); this unit only creates the table.
