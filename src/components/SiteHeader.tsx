@@ -5,6 +5,7 @@ import { site } from "@/lib/site";
 
 export type NavPage =
   | "home"
+  | "pricing"
   | "privacy"
   | "support"
   | "login"
@@ -37,6 +38,12 @@ export function SiteHeader({
         <nav className="site-nav" aria-label="Primary">
           <Link to="/" aria-current={current === "home" ? "page" : undefined}>
             Home
+          </Link>
+          <Link
+            to="/pricing"
+            aria-current={current === "pricing" ? "page" : undefined}
+          >
+            Pricing
           </Link>
           <Link
             to="/privacy"

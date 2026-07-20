@@ -13,7 +13,7 @@ plain language, with copy-paste examples.
 - **Fix-first guidance** — every issue leads with what to change, not a wall of jargon
 - **Plain-language explanations** — with before/after examples you can copy and paste
 - **Private by default** — no account needed and no telemetry; your pages stay in your browser
-- **An optional dashboard** — connect a free account to save the audits you choose and track issues across pages and over time
+- **An optional dashboard** — connect a free account to save the audits you choose and track issues across pages and over time (free, with a paid Pro tier for longer history and more headroom; the extension is free either way)
 
 ## About this repo
 

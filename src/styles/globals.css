@@ -639,6 +639,79 @@ code, kbd, pre { font-family: var(--font-mono); }
 .mini-btn--accent { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* ============================================================
+   Pricing
+   ============================================================ */
+/* The interval chooser is a radio fieldset, not a two-state button: it is a
+   choice between two options, and radios give keyboard and screen-reader
+   semantics for free. Same shape as the account panel's .upgrade__choice,
+   laid out in a row here because it heads the grid. */
+.interval-toggle {
+  border: 0; margin: 0 0 1.6rem; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 1.1rem;
+}
+.interval-toggle legend {
+  padding: 0; margin-bottom: .5rem;
+  font-size: .78rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted);
+}
+.interval-toggle label {
+  display: inline-flex; align-items: center; gap: .5rem;
+  cursor: pointer; font-weight: 600;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+  align-items: start;
+}
+@media (min-width: 900px) {
+  .pricing-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.price-card {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.6rem 1.6rem 1.7rem;
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column;
+}
+/* Pro is the recommended plan, so it carries the accent border. Nothing else
+   about it moves — a scaled-up card would break the three-column baseline. */
+.price-card--featured { border-color: var(--accent); box-shadow: var(--shadow); }
+.price-card--soon { opacity: .78; }
+.price-card h3 { margin: 0 0 .3rem; font-size: 1.3rem; }
+.price-card__flag {
+  margin: 0 0 .4rem;
+  font-size: .74rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--accent-text);
+}
+.price-card--soon .price-card__flag { color: var(--muted); }
+.price { margin: 0 0 .8rem; display: flex; align-items: baseline; gap: .25rem; }
+.price strong { font-size: 2.4rem; font-weight: 700; letter-spacing: -.02em; }
+.price__per { color: var(--muted); font-size: 1rem; }
+.price-card__lede { margin: 0 0 1.1rem; color: var(--muted); font-size: .97rem; }
+
+.plan-list { list-style: none; margin: 0 0 1.4rem; padding: 0; display: grid; gap: .55rem; }
+.plan-list li { position: relative; padding-left: 1.5rem; font-size: .97rem; }
+.plan-list li::before {
+  content: "✓";
+  position: absolute; left: 0;
+  color: var(--pass-text); font-weight: 700;
+}
+/* The CTA sits at the card's foot so all three line up despite unequal lists.
+   In this flex column the button stretches to the card width — deliberate, so
+   each plan's action is the same size target. */
+.price-card .btn, .price-card__note { margin-top: auto; }
+.price-card .btn { align-self: stretch; justify-content: center; }
+.price-card__note { margin-bottom: 0; font-size: .9rem; }
+.price-card .btn + .price-card__note { margin-top: .7rem; }
+
+.pricing-error { color: var(--sev-critical); font-weight: 600; }
+.pricing-foot { margin-top: 1.4rem; }
+
+/* ============================================================
    Prose pages (Privacy / Support)
    ============================================================ */
 .page-head { padding-top: clamp(2.5rem, 5vw, 3.5rem); padding-bottom: 1rem; }
@@ -649,6 +722,9 @@ code, kbd, pre { font-family: var(--font-mono); }
 .prose { max-width: var(--maxw-prose); }
 .prose h2 { font-size: 1.45rem; margin-top: 2.2rem; }
 .prose h2:first-of-type { margin-top: 0; }
+/* Sub-sections under a h2 (e.g. the third-party processors) sit closer to it
+   than a new h2 does, so the grouping reads at a glance. */
+.prose h3 { font-size: 1.1rem; margin-top: 1.6rem; }
 .prose p { color: var(--text); }
 .prose p, .prose li { font-size: 1.05rem; }
 .prose strong { font-weight: 650; }

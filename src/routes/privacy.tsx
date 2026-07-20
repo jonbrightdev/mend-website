@@ -92,7 +92,54 @@ function PrivacyPage() {
           </p>
 
           <h2>Third parties</h2>
-          <p>Mend uses no third-party services and shares data with no one.</p>
+          <p>
+            The extension itself uses no third-party services: with sync off it
+            makes no network requests at all, and it never sends anything to an
+            analytics or advertising service on any plan. Mend sells your data
+            to no one. The optional account and dashboard do rely on a few
+            processors, and only in the ways described here.
+          </p>
+
+          <h3>Payments</h3>
+          <p>
+            If you subscribe to the Pro dashboard, payment is processed by{" "}
+            <strong>Stripe</strong>. Checkout is hosted by Stripe, so your card
+            number never reaches Mend&apos;s servers — we never see or store it.
+            What we keep is your Stripe customer and subscription IDs, the plan
+            you&apos;re on, its status, and when the current period ends, so the
+            dashboard knows what your account is entitled to.
+          </p>
+          <p>
+            What Stripe receives: your email address, any name and payment
+            details you enter into their checkout, and subscription metadata
+            identifying which Mend account the payment belongs to. Stripe
+            handles that data under its own privacy policy as our payment
+            processor.
+          </p>
+
+          <h3>Sign-in and email</h3>
+          <p>
+            If you choose to sign in with Google or GitHub, that provider tells
+            us your email address and name to create the account — you can use
+            an email and password instead. Transactional email, such as address
+            verification, is delivered through an email provider (Resend) when
+            one is configured. There is no marketing email.
+          </p>
+
+          <h3>Hosting</h3>
+          <p>
+            The dashboard and its database run on Railway, which hosts the data
+            described above on our behalf.
+          </p>
+
+          <h3>Deleting your account</h3>
+          <p>
+            Deleting your account removes everything Mend stores for you —
+            audits, keys, and the account itself — and, if you subscribed,
+            cancels your Stripe subscription and removes the customer record
+            held for you. Stripe retains its own payment and invoice records
+            where it is legally required to.
+          </p>
 
           <h2>Changes</h2>
           <p>
