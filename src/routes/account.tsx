@@ -11,7 +11,7 @@ export const Route = createFileRoute("/account")({
       {
         name: "description",
         content:
-          "Manage the keys that connect the Mend extension to your dashboard.",
+          "Manage your plan and the keys that connect the Mend extension to your dashboard.",
       },
     ],
   }),
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/account")({
 });
 
 function AccountPage() {
-  const { user, keys, hasPassword } = Route.useLoaderData();
+  const { user, keys, hasPassword, keyQuota, billing } = Route.useLoaderData();
   return (
     <MarketingShell
       current="account"
@@ -39,7 +39,12 @@ function AccountPage() {
             Back to dashboard
           </Link>
         </div>
-        <AccountClient initialKeys={keys} hasPassword={hasPassword} />
+        <AccountClient
+          initialKeys={keys}
+          hasPassword={hasPassword}
+          keyQuota={keyQuota}
+          billing={billing}
+        />
       </div>
     </MarketingShell>
   );

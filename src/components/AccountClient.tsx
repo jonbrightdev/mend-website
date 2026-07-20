@@ -4,8 +4,11 @@ import {
   revokeApiKey,
   deleteAllAudits,
   type ApiKeyRow,
+  type BillingSummary,
+  type KeyQuota,
 } from "@/lib/account-fns";
 import { authClient } from "@/lib/auth-client";
+import { BillingPanel } from "@/components/BillingPanel";
 
 // "Connect extension" panel. Generates an API key (shown once), lists existing
 // keys, and revokes them. The key is what the Mend extension pastes into its
@@ -13,9 +16,13 @@ import { authClient } from "@/lib/auth-client";
 export function AccountClient({
   initialKeys,
   hasPassword,
+  keyQuota,
+  billing,
 }: {
   initialKeys: ApiKeyRow[];
   hasPassword: boolean;
+  keyQuota: KeyQuota;
+  billing: BillingSummary;
 }) {
   const [keys, setKeys] = useState<ApiKeyRow[]>(initialKeys);
   const [freshKey, setFreshKey] = useState<string | null>(null);
@@ -23,7 +30,11 @@ export function AccountClient({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Recomputed from the server's own key list after every generate/revoke, so
+  // the cap follows the list rather than the stale loader snapshot. Only `max`
+  // comes from the loader — it changes with the plan, not with this page.
   const activeKeys = keys.filter((k) => !k.revokedAt);
+  const atCap = keyQuota.max !== null && activeKeys.length >= keyQuota.max;
 
   async function onGenerate() {
     setError(null);
@@ -43,8 +54,15 @@ export function AccountClient({
         { source: "mend-website", type: "MEND_API_KEY", apiKey: key },
         window.location.origin,
       );
-    } catch {
-      setError("Couldn't create a key. Please try again.");
+    } catch (e) {
+      // assertKeyQuota's message names the actual limit and the way out
+      // ("Revoke one or upgrade to Pro"), which a generic string would throw
+      // away. Fall back only when there is no message to show.
+      setError(
+        e instanceof Error && e.message
+          ? e.message
+          : "Couldn't create a key. Please try again.",
+      );
     } finally {
       setPending(false);
     }
@@ -75,9 +93,16 @@ export function AccountClient({
 
   return (
     <>
+    <BillingPanel billing={billing} />
+
     <section className="panel" aria-labelledby="connect-h">
       <div className="panel__head">
         <h2 id="connect-h">Connect the Mend extension</h2>
+        {keyQuota.max !== null && (
+          <span className="hint">
+            {activeKeys.length} of {keyQuota.max} active keys
+          </span>
+        )}
       </div>
       <div className="panel__body">
         <p className="muted" style={{ marginTop: 0, maxWidth: "60ch" }}>
@@ -130,14 +155,23 @@ export function AccountClient({
             </button>
           </div>
         ) : (
-          <button
-            className="btn btn--primary"
-            type="button"
-            disabled={pending}
-            onClick={onGenerate}
-          >
-            {pending ? "Generating…" : "Generate a key"}
-          </button>
+          <>
+            <button
+              className="btn btn--primary"
+              type="button"
+              disabled={pending || atCap}
+              onClick={onGenerate}
+            >
+              {pending ? "Generating…" : "Generate a key"}
+            </button>
+            {atCap && (
+              <p className="muted" style={{ margin: ".6rem 0 0" }}>
+                {billing.plan === "free"
+                  ? "You've used every key your plan allows. Revoke one, or upgrade to Pro for more."
+                  : "You've used every key your plan allows. Revoke one to add another."}
+              </p>
+            )}
+          </>
         )}
 
         <h3 style={{ margin: "1.8rem 0 .5rem", fontSize: "1.05rem" }}>Your keys</h3>

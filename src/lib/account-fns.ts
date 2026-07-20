@@ -18,11 +18,14 @@ import { apiKey, audit } from "@/db/schema";
 import { generateKey, hashKey } from "@/lib/api-key";
 import {
   assertKeyQuota,
+  getKeyQuota,
   listKeysFor,
   userHasPassword,
 } from "@/lib/account-queries";
+import { getBillingSummary } from "@/lib/billing-queries";
 
-export type { ApiKeyRow } from "@/lib/account-queries";
+export type { ApiKeyRow, KeyQuota } from "@/lib/account-queries";
+export type { BillingSummary } from "@/lib/billing-queries";
 
 export const fetchAccount = createServerFn({ method: "GET" }).handler(
   async () => {
@@ -32,6 +35,8 @@ export const fetchAccount = createServerFn({ method: "GET" }).handler(
       user,
       keys: await listKeysFor(user.id),
       hasPassword: await userHasPassword(user.id),
+      keyQuota: await getKeyQuota(user.id),
+      billing: await getBillingSummary(user.id),
     };
   },
 );

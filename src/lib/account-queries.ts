@@ -63,6 +63,25 @@ export async function assertKeyQuota(userId: string): Promise<void> {
   }
 }
 
+// What the key panel shows above Generate: how many active keys exist and how
+// many the plan allows. Reads the same entitlements assertKeyQuota enforces, so
+// the disabled button and the server error can never disagree. `max` is null
+// only if a plan ever grows an unbounded key allowance — JSON can't carry
+// Infinity, and the UI hides the cap rather than printing "null".
+export interface KeyQuota {
+  active: number;
+  max: number | null;
+}
+
+export async function getKeyQuota(userId: string): Promise<KeyQuota> {
+  const { maxActiveApiKeys } = await getUserEntitlements(userId);
+  const active = (await listKeysFor(userId)).filter((k) => !k.revokedAt).length;
+  return {
+    active,
+    max: Number.isFinite(maxActiveApiKeys) ? maxActiveApiKeys : null,
+  };
+}
+
 // Whether the user can re-verify with a password. OAuth-only accounts have no
 // "credential" row, so the delete-account UI must not demand a password from
 // them. Exported so it is testable without invoking the createServerFn wrapper.

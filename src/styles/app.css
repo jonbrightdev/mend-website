@@ -372,6 +372,36 @@
 .danger-action p { margin: 0 0 .7rem; color: var(--muted); max-width: 60ch; }
 .danger-action__row { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 
+/* ---- Billing panel ------------------------------------------------ */
+/* The plan badge sits in .panel__head's baseline row, so it borrows the same
+   pill shape as .sev rather than inventing a second badge geometry. */
+.plan-badge {
+  display: inline-flex; align-items: center;
+  padding: .2rem .6rem;
+  border-radius: var(--r-pill);
+  font-size: .74rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+  background: var(--surface); color: var(--muted);
+  border: 1px solid var(--border-strong);
+}
+.plan-badge--pro {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+/* Payment-failure notice: same callout block, warning accent on the rule. */
+.callout--warn { border-left-color: var(--sev-critical); }
+
+.upgrade { display: grid; gap: .9rem; justify-items: start; }
+.upgrade__choice { border: 0; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.upgrade__choice legend {
+  padding: 0; margin-bottom: .5rem;
+  font-size: .78rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted);
+}
+.upgrade__choice label { display: flex; align-items: center; gap: .55rem; cursor: pointer; }
+.upgrade__choice input { accent-color: var(--accent); }
+
 /* ---- Data table --------------------------------------------------- */
 .table-scroll { overflow-x: auto; }
 table.data { width: 100%; border-collapse: collapse; font-size: .96rem; }

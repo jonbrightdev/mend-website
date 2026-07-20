@@ -8,7 +8,8 @@
 
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { subscription } from "@/db/schema";
+import { subscription, user } from "@/db/schema";
+import { isBillingEnabled } from "@/lib/billing-config";
 import {
   areFreeLimitsEnforced,
   effectivePlan,
@@ -33,6 +34,68 @@ export async function getUserEntitlements(userId: string): Promise<PlanLimits> {
     currentPeriodEnd: s.currentPeriodEnd,
   });
   return limitsFor(effective, { freeLimitsEnforced: enforced });
+}
+
+/**
+ * Everything the account/billing UI needs, in one client-safe shape. Dates are
+ * ISO strings because this crosses the createServerFn boundary.
+ *
+ * `plan` is the *effective* plan (what the user is entitled to right now);
+ * `productPlan` is what they bought. They differ during the grace windows
+ * effectivePlan() encodes — a past_due card still on Pro, or a canceled
+ * subscription running out its paid period.
+ */
+export interface BillingSummary {
+  plan: PlanId;
+  productPlan: PlanId;
+  status: SubscriptionStatus | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  interval: "month" | "year" | null;
+  canUpgrade: boolean;
+  canManage: boolean;
+  billingEnabled: boolean;
+  freeLimitsEnforced: boolean;
+}
+
+export async function getBillingSummary(userId: string): Promise<BillingSummary> {
+  const billingEnabled = isBillingEnabled();
+  const freeLimitsEnforced = areFreeLimitsEnforced();
+
+  const [row] = await db
+    .select()
+    .from(subscription)
+    .where(eq(subscription.userId, userId))
+    .limit(1);
+  const [owner] = await db
+    .select({ stripeCustomerId: user.stripeCustomerId })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
+
+  const productPlan = (row?.plan ?? "free") as PlanId;
+  const plan = row
+    ? effectivePlan({
+        productPlan,
+        status: row.status as SubscriptionStatus,
+        currentPeriodEnd: row.currentPeriodEnd,
+      })
+    : "free";
+
+  return {
+    plan,
+    productPlan,
+    status: (row?.status as SubscriptionStatus | undefined) ?? null,
+    currentPeriodEnd: row?.currentPeriodEnd?.toISOString() ?? null,
+    cancelAtPeriodEnd: row?.cancelAtPeriodEnd ?? false,
+    interval: row?.interval ?? null,
+    // Offer Checkout only when it would actually succeed: the route 409s with
+    // ALREADY_SUBSCRIBED for anyone effectivePlan() still counts as Pro.
+    canUpgrade: billingEnabled && plan === "free",
+    canManage: billingEnabled && Boolean(owner?.stripeCustomerId),
+    billingEnabled,
+    freeLimitsEnforced,
+  };
 }
 
 /** Test helper: insert a Pro active subscription for userId. */
