@@ -1,0 +1,27 @@
+# Mend
+
+> Mend is a free, open-source (MIT) accessibility auditor for Chrome. It scans
+> the active tab against WCAG 2.0, 2.1, and 2.2 using the axe-core rule engine,
+> entirely on your device and with no network requests, and reports each issue
+> with the fix first and the explanation underneath. An optional, separate cloud
+> dashboard can store audit history and generate VPAT-format conformance
+> reports; the extension itself works fully offline and never requires an
+> account. Like every automated tool, Mend finds a subset of accessibility
+> problems — it cannot make a site accessible or certify it as compliant, and
+> the documentation here says so wherever conformance comes up.
+
+## Docs
+
+- [Docs index](https://mend-a11y.com/docs): Plain-language guides to
+  accessibility conformance and the law. Two guides are in progress — VPATs and
+  ACRs, and accessibility laws and legal compliance.
+
+## Product
+
+- [Home](https://mend-a11y.com/): What Mend does, and how its issue reports are
+  written.
+- [Pricing](https://mend-a11y.com/pricing): The extension is free forever. Plans
+  cover the optional cloud dashboard only.
+- [Privacy](https://mend-a11y.com/privacy): On-device processing, what the
+  optional dashboard stores, and the third parties involved.
+- [Support](https://mend-a11y.com/support): FAQ, GitHub Issues, and contact.
