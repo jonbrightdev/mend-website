@@ -20,6 +20,16 @@ vi.mock("@/lib/account-fns", () => ({
 vi.mock("@/lib/auth-client", () => ({
   authClient: { deleteUser: vi.fn() },
 }));
+// Mock Link so no router context is needed — keep every other export real.
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  // biome-ignore lint/suspicious/noExplicitAny: minimal Link stand-in for tests.
+  Link: ({ to, children, ...rest }: any) => (
+    <a href={typeof to === "string" ? to : "#"} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 // No vitest globals, so register RTL cleanup ourselves.
 afterEach(cleanup);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   createApiKey,
   revokeApiKey,
@@ -207,8 +208,33 @@ export function AccountClient({
       </div>
     </section>
 
+    <ReportsPanel />
+
     <DangerZone hasPassword={hasPassword} />
     </>
+  );
+}
+
+// The entry point to /vpat from the account page. Deliberately short — the
+// report page itself carries the framing about what an automated assessment
+// does and does not establish.
+function ReportsPanel() {
+  return (
+    <section className="panel" aria-labelledby="reports-h">
+      <div className="panel__head">
+        <h2 id="reports-h">Reports</h2>
+      </div>
+      <div className="panel__body">
+        <p className="muted" style={{ marginTop: 0, maxWidth: "60ch" }}>
+          Turn your audit data into a VPAT-format accessibility conformance
+          report — the per-criterion table procurement teams ask for, as an
+          automated assessment against WCAG 2.2 Level A and AA.
+        </p>
+        <Link className="btn btn--ghost" to="/vpat">
+          Generate a conformance report
+        </Link>
+      </div>
+    </section>
   );
 }
 

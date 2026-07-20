@@ -216,11 +216,16 @@ export function DashboardClient({ audits, runDates, hasActiveKey }: Props) {
             Last synced {lastAudit ? relTime(lastAudit.scannedAt) : "—"} · {audits.length} page{audits.length !== 1 ? "s" : ""} · {totalViolations(audits)} open violation{totalViolations(audits) !== 1 ? "s" : ""}
           </p>
         </div>
-        {!hasActiveKey && (
-          <Link className="btn btn--ghost" to="/account">
-            Connect extension
+        <div style={{ display: "flex", gap: ".5rem", flexWrap: "wrap" }}>
+          <Link className="btn btn--ghost" to="/vpat">
+            VPAT report
           </Link>
-        )}
+          {!hasActiveKey && (
+            <Link className="btn btn--ghost" to="/account">
+              Connect extension
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Main toolbar: search + scope + layout */}
