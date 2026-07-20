@@ -11,6 +11,8 @@
    import, so the running server never reads node_modules.
    ============================================================ */
 
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { chromium } from "playwright-core";
 import axeSource from "axe-core/axe.min.js?raw";
 import { parsePayload, type IngestPayload } from "@/lib/ingest-payload";
@@ -28,9 +30,35 @@ const VIEWPORT = { width: 1280, height: 800 };
 const USER_AGENT =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 MendMonitor/1.0 (+https://mend.dev/support)";
 
-/** The Chromium binary to launch: CHROMIUM_PATH, else whatever is on PATH. */
+let cachedPathLookup: string | undefined;
+
+/**
+ * The Chromium binary to launch: CHROMIUM_PATH, else the first `chromium`
+ * found on PATH.
+ *
+ * Playwright checks this value with a plain `fs.access` before spawning it —
+ * unlike a shell, it does not search PATH for a bare command name — so
+ * returning the literal string "chromium" resolves against
+ * `process.cwd()` and never matches the Nixpacks-installed binary. Walk
+ * PATH ourselves instead, the same as a shell would.
+ */
 export function chromiumPath(): string {
-  return process.env.CHROMIUM_PATH || "chromium";
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
+  if (cachedPathLookup) return cachedPathLookup;
+
+  for (const dir of (process.env.PATH ?? "").split(delimiter)) {
+    if (!dir) continue;
+    const candidate = join(dir, "chromium");
+    if (existsSync(candidate)) {
+      cachedPathLookup = candidate;
+      return candidate;
+    }
+  }
+
+  // Nothing found on PATH: return the bare name so Playwright's own
+  // "doesn't exist at chromium" error still fires, naming the exact path
+  // it tried rather than us swallowing the lookup failure silently.
+  return "chromium";
 }
 
 /**
