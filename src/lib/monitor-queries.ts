@@ -7,10 +7,10 @@
    Mirrors the account-fns / account-queries split.
    ============================================================ */
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { monitor } from "@/db/schema";
-import { initialRunAt } from "@/lib/monitor-schedule";
+import { initialRunAt, nextRunAt } from "@/lib/monitor-schedule";
 import { assertScannableUrl } from "@/lib/scan/url-guard";
 
 // Monitor metadata safe to send to the client. Dates are ISO strings, like
@@ -24,6 +24,14 @@ export interface MonitorRow {
   nextRunAt: string;
   lastRunAt: string | null;
   lastError: string | null;
+}
+
+// The minimum a scan run needs to know. Defined here, with the other row
+// shapes, and consumed by run-monitor.ts.
+export interface MonitorTarget {
+  id: string;
+  userId: string;
+  url: string;
 }
 
 // A capacity guard, not a billing tier. Ten daily scans per account is well
@@ -109,6 +117,47 @@ export async function addMonitor(userId: string, url: string): Promise<MonitorRo
     }
     throw e;
   }
+}
+
+/**
+ * Atomically claims due, unpaused monitors by rolling their `nextRunAt` into
+ * tomorrow's random slot, returning what was claimed.
+ *
+ * Claim-then-run is the important part: a crash mid-batch costs at most one
+ * day's run (the monitor self-heals tomorrow) instead of leaving `nextRunAt`
+ * in the past so every tick retries a scan that keeps crashing. runMonitor
+ * re-rolls `nextRunAt` again on completion — a harmless double-roll, since
+ * both land in tomorrow's window.
+ *
+ * Not scoped to a user: this is the scheduler's system-wide sweep, the one
+ * place that deliberately crosses account boundaries.
+ */
+export async function claimDueMonitors(
+  now: Date,
+  limit: number,
+): Promise<MonitorTarget[]> {
+  // One slot for the whole batch is fine — runMonitor re-rolls each row
+  // individually as it finishes.
+  const claimed = nextRunAt(now);
+
+  const due = db
+    .select({ id: monitor.id })
+    .from(monitor)
+    .where(and(lte(monitor.nextRunAt, now), isNull(monitor.pausedAt)))
+    // Oldest first, so a backlog drains in the order it fell behind rather
+    // than starving the monitors that have been waiting longest.
+    .orderBy(asc(monitor.nextRunAt))
+    .limit(limit);
+
+  // .returning() takes no field selection in this drizzle version — read the
+  // full row and narrow here (same gotcha as plans 037 and 039).
+  const rows = await db
+    .update(monitor)
+    .set({ nextRunAt: claimed })
+    .where(inArray(monitor.id, due))
+    .returning();
+
+  return rows.map((r) => ({ id: r.id, userId: r.userId, url: r.url }));
 }
 
 // One monitor, owner-scoped. Returns the raw row (Dates intact) because its

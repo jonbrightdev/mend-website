@@ -154,6 +154,96 @@ describe("setPaused", () => {
   });
 });
 
+describe("claimDueMonitors", () => {
+  const NOW = new Date("2026-07-20T12:00:00.000Z");
+
+  // Bypasses addMonitor so a row can be planted with an arbitrary nextRunAt.
+  async function plant(
+    id: string,
+    nextRun: string,
+    over: { pausedAt?: Date; userId?: string } = {},
+  ) {
+    await db.insert(monitor).values({
+      id,
+      userId: over.userId ?? "m-owner",
+      url: `https://example.com/${id}`,
+      nextRunAt: new Date(nextRun),
+      pausedAt: over.pausedAt ?? null,
+    });
+  }
+
+  it("claims a due, unpaused monitor", async () => {
+    await plant("due", "2026-07-20T11:00:00.000Z");
+
+    const claimed = await q.claimDueMonitors(NOW, 20);
+
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0]).toEqual({
+      id: "due",
+      userId: "m-owner",
+      url: "https://example.com/due",
+    });
+  });
+
+  it("rolls the claimed monitor into tomorrow's UTC day", async () => {
+    await plant("due", "2026-07-20T11:00:00.000Z");
+
+    await q.claimDueMonitors(NOW, 20);
+
+    const [row] = await db.select().from(monitor).where(eq(monitor.id, "due"));
+    expect(row!.nextRunAt >= new Date("2026-07-21T00:00:00.000Z")).toBe(true);
+    expect(row!.nextRunAt < new Date("2026-07-22T00:00:00.000Z")).toBe(true);
+  });
+
+  it("skips a monitor that is due but paused", async () => {
+    await plant("paused", "2026-07-20T11:00:00.000Z", { pausedAt: NOW });
+    expect(await q.claimDueMonitors(NOW, 20)).toHaveLength(0);
+  });
+
+  it("skips a monitor whose next run is still in the future", async () => {
+    await plant("future", "2026-07-20T13:00:00.000Z");
+    expect(await q.claimDueMonitors(NOW, 20)).toHaveLength(0);
+  });
+
+  it("claims a monitor due exactly now", async () => {
+    await plant("boundary", "2026-07-20T12:00:00.000Z");
+    expect(await q.claimDueMonitors(NOW, 20)).toHaveLength(1);
+  });
+
+  it("respects the limit, taking the longest-overdue first", async () => {
+    await plant("oldest", "2026-07-20T08:00:00.000Z");
+    await plant("middle", "2026-07-20T09:00:00.000Z");
+    await plant("newest", "2026-07-20T10:00:00.000Z");
+
+    const claimed = await q.claimDueMonitors(NOW, 2);
+
+    expect(claimed.map((c) => c.id).sort()).toEqual(["middle", "oldest"]);
+  });
+
+  // The property the whole claim-then-run design rests on: once claimed, a
+  // monitor is not due again, so a second ticker (or an overlapping tick)
+  // cannot run it twice.
+  it("claims nothing on an immediate second call", async () => {
+    await plant("due", "2026-07-20T11:00:00.000Z");
+
+    expect(await q.claimDueMonitors(NOW, 20)).toHaveLength(1);
+    expect(await q.claimDueMonitors(NOW, 20)).toHaveLength(0);
+  });
+
+  it("sweeps across users — the scheduler is system-wide", async () => {
+    await plant("mine", "2026-07-20T11:00:00.000Z");
+    await plant("theirs", "2026-07-20T11:00:00.000Z", { userId: "m-other" });
+
+    const claimed = await q.claimDueMonitors(NOW, 20);
+
+    expect(claimed.map((c) => c.userId).sort()).toEqual(["m-other", "m-owner"]);
+  });
+
+  it("returns nothing when there is nothing to do", async () => {
+    expect(await q.claimDueMonitors(NOW, 20)).toEqual([]);
+  });
+});
+
 describe("deleteMonitor", () => {
   it("removes the monitor", async () => {
     const created = await q.addMonitor("m-owner", "https://example.com/p");

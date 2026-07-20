@@ -16,16 +16,13 @@ import { storeAuditRun } from "@/lib/audit-store";
 import { nextRunAt } from "@/lib/monitor-schedule";
 import { scanPage } from "@/lib/scan/scanner";
 import type { IngestPayload } from "@/lib/ingest-payload";
+import type { MonitorTarget } from "@/lib/monitor-queries";
 
 // Long enough to keep the useful part of a Playwright timeout message, short
 // enough that a stack-trace-shaped error can't bloat the row.
 const MAX_ERROR_LENGTH = 500;
 
-export interface MonitorTarget {
-  id: string;
-  userId: string;
-  url: string;
-}
+export type { MonitorTarget } from "@/lib/monitor-queries";
 
 export interface RunMonitorResult {
   ok: boolean;

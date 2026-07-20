@@ -8,7 +8,12 @@ export default defineConfig({
   plugins: [
     // PGlite must stay external: bundling it strips the WASM/data assets it
     // loads relative to its own module path.
-    nitro({ rollupConfig: { external: ["@electric-sql/pglite"] } }),
+    nitro({
+      rollupConfig: { external: ["@electric-sql/pglite"] },
+      // Registered explicitly: nitro's srcDir scanning (which would auto-load
+      // a plugins/ directory) is off by default in this setup.
+      plugins: ["./src/server/plugins/monitor-scheduler.ts"],
+    }),
     tanstackStart(),
     viteReact(),
   ],
