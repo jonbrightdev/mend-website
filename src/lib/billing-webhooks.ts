@@ -226,15 +226,33 @@ export async function prepareSubscriptionMirror(
   return { userId, sub };
 }
 
-/** Postgres unique_violation (23505), surfaced by both the pg and PGlite
- * drivers as `error.cause.code` under Drizzle's DrizzleQueryError wrapper. */
-export function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "cause" in error &&
-    typeof (error as { cause?: unknown }).cause === "object" &&
-    (error as { cause: { code?: unknown } }).cause !== null &&
-    (error as { cause: { code?: unknown } }).cause.code === "23505"
-  );
+/**
+ * A Postgres unique_violation (23505) raised specifically by the `stripe_event`
+ * insert — i.e. this event id was already processed, so the delivery is a
+ * duplicate the caller may safely acknowledge with a 200.
+ *
+ * Deliberately narrow. The `subscription` table carries its own unique indexes
+ * (`subscription_user_uidx` on userId, plus stripeSubscriptionId), and those
+ * fire on a real race: two events for a user with no mirror row yet (Stripe
+ * commonly delivers `checkout.session.completed` and
+ * `customer.subscription.created` together) both find nothing to UPDATE and
+ * both INSERT, so the loser gets a 23505. That event's data was *not* written,
+ * so it must surface as a 500 and let Stripe retry — on retry the row exists
+ * and the UPDATE path applies it. Treating it as a duplicate would return 200,
+ * stop the retry, and silently lose the update.
+ *
+ * Both the pg and PGlite drivers expose the failing relation under Drizzle's
+ * DrizzleQueryError as `cause.table` / `cause.constraint`.
+ */
+export function isDuplicateEventInsert(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("cause" in error)) return false;
+  const cause = (error as { cause?: unknown }).cause;
+  if (typeof cause !== "object" || cause === null) return false;
+  const { code, table, constraint } = cause as {
+    code?: unknown;
+    table?: unknown;
+    constraint?: unknown;
+  };
+  if (code !== "23505") return false;
+  return table === "stripe_event" || constraint === "stripe_event_pkey";
 }

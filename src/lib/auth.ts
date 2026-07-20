@@ -51,10 +51,11 @@ export async function cleanupStripeBeforeDelete(sessionUser: { id: string }): Pr
   if (!row?.stripeCustomerId) return; // free path: nothing to clean up
 
   try {
-    // Loaded lazily: auth.ts is imported by nearly every server module (and
-    // test suite), while @/lib/stripe constructs its client at import time and
-    // throws without STRIPE_SECRET_KEY. Only this paid path needs it — and a
-    // missing key here still fails closed via this catch.
+    // Imported here rather than at module scope: auth.ts is pulled in by
+    // nearly every server module and test, and only this paid path needs
+    // Stripe. If STRIPE_SECRET_KEY is unset, the client construction inside
+    // @/lib/stripe throws on first property access — caught below, so a
+    // misconfigured deploy fails closed rather than deleting a paying account.
     const { stripe } = await import("@/lib/stripe");
     const subs = await stripe.subscriptions.list({
       customer: row.stripeCustomerId,

@@ -26,7 +26,7 @@ let intervalFromPriceId: (typeof import("@/lib/billing-webhooks"))["intervalFrom
 let shouldApplySubscriptionMirror: (typeof import("@/lib/billing-webhooks"))["shouldApplySubscriptionMirror"];
 let upsertFromStripeSubscription: (typeof import("@/lib/billing-webhooks"))["upsertFromStripeSubscription"];
 let resolveUserId: (typeof import("@/lib/billing-webhooks"))["resolveUserId"];
-let isUniqueViolation: (typeof import("@/lib/billing-webhooks"))["isUniqueViolation"];
+let isDuplicateEventInsert: (typeof import("@/lib/billing-webhooks"))["isDuplicateEventInsert"];
 
 beforeAll(async () => {
   db = await createTestDb();
@@ -37,7 +37,7 @@ beforeAll(async () => {
     shouldApplySubscriptionMirror,
     upsertFromStripeSubscription,
     resolveUserId,
-    isUniqueViolation,
+    isDuplicateEventInsert,
   } = await import("@/lib/billing-webhooks"));
 });
 
@@ -308,14 +308,35 @@ describe("resolveUserId", () => {
   });
 });
 
-describe("isUniqueViolation", () => {
-  it("recognizes a Postgres 23505 wrapped in DrizzleQueryError's cause", () => {
-    expect(isUniqueViolation({ cause: { code: "23505" } })).toBe(true);
+describe("isDuplicateEventInsert", () => {
+  it("recognizes a 23505 from the stripe_event insert (by table or constraint)", () => {
+    expect(isDuplicateEventInsert({ cause: { code: "23505", table: "stripe_event" } })).toBe(true);
+    expect(
+      isDuplicateEventInsert({ cause: { code: "23505", constraint: "stripe_event_pkey" } }),
+    ).toBe(true);
+  });
+
+  it("rejects a 23505 raised by the subscription upsert, so Stripe retries", () => {
+    // The mirror was NOT written here — acknowledging it would lose the update.
+    expect(
+      isDuplicateEventInsert({
+        cause: { code: "23505", table: "subscription", constraint: "subscription_user_uidx" },
+      }),
+    ).toBe(false);
+    expect(
+      isDuplicateEventInsert({
+        cause: {
+          code: "23505",
+          table: "subscription",
+          constraint: "subscription_stripeSubscriptionId_unique",
+        },
+      }),
+    ).toBe(false);
   });
 
   it("returns false for other shapes", () => {
-    expect(isUniqueViolation(new Error("boom"))).toBe(false);
-    expect(isUniqueViolation(null)).toBe(false);
-    expect(isUniqueViolation({ cause: { code: "23503" } })).toBe(false);
+    expect(isDuplicateEventInsert(new Error("boom"))).toBe(false);
+    expect(isDuplicateEventInsert(null)).toBe(false);
+    expect(isDuplicateEventInsert({ cause: { code: "23503", table: "stripe_event" } })).toBe(false);
   });
 });

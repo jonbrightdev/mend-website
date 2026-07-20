@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { stripeEvent } from "@/db/schema";
 import { stripe } from "@/lib/stripe";
 import {
-  isUniqueViolation,
+  isDuplicateEventInsert,
   prepareSubscriptionMirror,
   upsertFromStripeSubscription,
 } from "@/lib/billing-webhooks";
@@ -78,9 +78,12 @@ export const Route = createFileRoute("/api/billing/webhook")({
             await upsertFromStripeSubscription(tx, prepared.userId, prepared.sub);
           });
         } catch (e) {
-          if (isUniqueViolation(e)) {
+          if (isDuplicateEventInsert(e)) {
             // Redelivered concurrently with another request already applying
             // this event id — already handled (or about to be); safe 200.
+            // Only the stripe_event insert counts: a unique violation from the
+            // subscription upsert means nothing was mirrored, so it falls
+            // through to the 500 below and Stripe retries.
             return Response.json({ received: true }, { status: 200 });
           }
           console.error("webhook: failed to apply event", event.id, event.type, e);

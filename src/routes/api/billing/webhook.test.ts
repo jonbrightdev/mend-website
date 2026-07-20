@@ -245,6 +245,48 @@ describe("POST /api/billing/webhook", () => {
     expect(evt).toBeDefined();
   });
 
+  it("a unique violation from the subscription upsert returns 500 so Stripe retries", async () => {
+    // Regression: the route once treated ANY 23505 as "event already
+    // processed" and returned 200. The subscription table has its own unique
+    // indexes (userId, stripeSubscriptionId), which collide for real when two
+    // events race to create the first mirror row for a user — acknowledging
+    // that with a 200 stops the retry and silently loses the update.
+    await db.insert(user).values({ id: "u2", name: "U2", email: "u2@example.com" });
+    await db.insert(subscription).values({
+      id: crypto.randomUUID(),
+      userId: "u2",
+      stripeSubscriptionId: "sub_shared",
+      stripePriceId: "price_month",
+      plan: "pro",
+      status: "active",
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(),
+      cancelAtPeriodEnd: false,
+      canceledAt: null,
+      interval: "month",
+    });
+
+    // u1 has no mirror row, so this UPDATEs nothing and INSERTs — tripping the
+    // stripeSubscriptionId unique constraint u2 already holds.
+    constructEvent.mockReturnValue(
+      makeEvent(
+        "evt_collide",
+        "customer.subscription.updated",
+        makeSub({ id: "sub_shared", metadata: { userId: "u1" } }),
+      ),
+    );
+
+    const res = await post({ request: req() });
+    expect(res.status).toBe(500);
+
+    // Nothing mirrored for u1, and no event row retained — so the retry is
+    // free to apply it once the conflict clears.
+    const u1Rows = await db.select().from(subscription).where(eq(subscription.userId, "u1"));
+    expect(u1Rows).toHaveLength(0);
+    const evtRows = await db.select().from(stripeEvent).where(eq(stripeEvent.id, "evt_collide"));
+    expect(evtRows).toHaveLength(0);
+  });
+
   it("returns 200 without writing an event row for an event type it doesn't mirror", async () => {
     const event = makeEvent("evt_irrelevant", "charge.succeeded", { id: "ch_1" });
     constructEvent.mockReturnValue(event);
