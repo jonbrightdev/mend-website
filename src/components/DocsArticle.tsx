@@ -36,7 +36,12 @@ export function DocsArticle({
 
       <section className="wrap section--tight">
         <p style={{ margin: 0 }}>
-          <Link to="/docs">← All guides</Link>
+          {/* `exact` matters: /docs is this route's parent, so Link's default
+              fuzzy matching would treat it as active and stamp
+              aria-current="page" on a link that points somewhere else. */}
+          <Link to="/docs" activeOptions={{ exact: true }}>
+            ← All guides
+          </Link>
         </p>
       </section>
     </>

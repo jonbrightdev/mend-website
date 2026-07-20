@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { MarketingShell } from "@/components/MarketingShell";
 import { getSessionUser } from "@/lib/session-fns";
 
@@ -26,7 +26,7 @@ const guides = [
     title: "VPATs and ACRs",
     summary:
       "What a VPAT document and an Accessibility Conformance Report actually are, who asks you for one, how to read one you have been sent, and what producing one honestly involves.",
-    href: null,
+    href: "/docs/vpats-and-acrs",
   },
   {
     title: "Accessibility laws and legal compliance",
@@ -60,11 +60,19 @@ function DocsIndexPage() {
         <div className="feature-grid reveal-group">
           {guides.map((guide) => (
             <article className="feature reveal" key={guide.title}>
-              <h3>{guide.title}</h3>
+              <h3>
+                {guide.href ? (
+                  <Link to={guide.href}>{guide.title}</Link>
+                ) : (
+                  guide.title
+                )}
+              </h3>
               <p>{guide.summary}</p>
-              <p className="feature__extra" style={{ margin: "1rem 0 0" }}>
-                <span className="chip">Coming soon</span>
-              </p>
+              {guide.href ? null : (
+                <p className="feature__extra" style={{ margin: "1rem 0 0" }}>
+                  <span className="chip">Coming soon</span>
+                </p>
+              )}
             </article>
           ))}
         </div>

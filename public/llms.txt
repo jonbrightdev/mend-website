@@ -13,8 +13,15 @@
 ## Docs
 
 - [Docs index](https://mend-a11y.com/docs): Plain-language guides to
-  accessibility conformance and the law. Two guides are in progress — VPATs and
-  ACRs, and accessibility laws and legal compliance.
+  accessibility conformance and the law.
+- [VPATs and ACRs](https://mend-a11y.com/docs/vpats-and-acrs): What a VPAT
+  (the blank template ITI publishes, currently 2.5Rev) and an ACR (the
+  completed report) are, the four template editions, the conformance
+  vocabulary — Supports, Partially Supports, Does Not Support, Not
+  Applicable, Not Evaluated — who asks for one and why, how to read one
+  critically, and how to produce a credible one. States plainly that
+  automated testing covers only a subset of each success criterion and
+  cannot by itself support a conformance claim.
 
 ## Product
 

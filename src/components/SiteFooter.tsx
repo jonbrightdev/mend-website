@@ -17,7 +17,11 @@ export function SiteFooter() {
         </div>
         <nav className="footer-links" aria-label="Footer">
           <a href={site.githubUrl}>GitHub</a>
-          <Link to="/docs">Docs</Link>
+          {/* Only nav entry with child routes, so it needs `exact` — otherwise
+              a docs article marks this link as the current page. */}
+          <Link to="/docs" activeOptions={{ exact: true }}>
+            Docs
+          </Link>
           <Link to="/pricing">Pricing</Link>
           <Link to="/privacy">Privacy</Link>
           <Link to="/support">Support</Link>
