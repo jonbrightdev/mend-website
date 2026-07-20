@@ -32,6 +32,18 @@ billing design generation:
   plan-035 key postMessage completes the extension funnel. Website half of
   `../mend-a11y/plans/008-account-signup-prompt.md`; either half can land
   first. (Renumbered 2026-07-19 from a file that collided with 042.)
+- **048–050** — **documentation** generation, planned at commit `9281534`
+  (2026-07-20), founder-requested: useful docs on the site, inspired by
+  Level Access's LLM-resources approach (human- *and* LLM-legible).
+  048 builds the `/docs` section + curated `public/llms.txt`; 049 is the
+  "VPATs and ACRs" guide (the request said "VPATs and MCR" — **MCR is not
+  an industry term**; research found only the VPAT/ACR pairing, so 049
+  assumes a slip for ACR and STOPs if the founder means otherwise); 050 is
+  "accessibility laws and legal compliance" (ADA/508/EAA/EN 301 549/UK +
+  brief others), with execution-time fact verification against primary
+  sources and a not-legal-advice disclaimer as hard requirements. Both
+  guides carry the 046 honesty stance: no copy may imply automated
+  testing alone yields compliance or a conformance claim.
 
 Each plan is self-contained — an executor needs no other context. Read the plan fully before starting, honor its STOP conditions, and update your status row when done.
 
@@ -66,6 +78,9 @@ migration `0002_nostalgic_bruce_banner.sql`), 014 (account-page danger zone),
 | [045](045-monitor-scheduler.md) | In-process daily scheduler (random UTC time per day) | P1 | M | 043, 044 | TODO |
 | [046](046-vpat-report.md) | On-demand VPAT-format conformance report | P2 | L | — | TODO |
 | [047](047-signup-extension-handoff.md) | Route extension-driven signups to /account | P2 | S-M | — | TODO |
+| [048](048-docs-foundation.md) | Docs section foundation (`/docs` + llms.txt) | P2 | M | — | TODO |
+| [049](049-docs-vpat-acr.md) | Docs guide: VPATs and ACRs | P2 | M | 048 | TODO |
+| [050](050-docs-accessibility-laws.md) | Docs guide: accessibility laws and legal compliance | P2 | L | 048 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -202,6 +217,31 @@ or Checkout vs Elements in plan execution.
   login routes and auth components — the pending GitHub genericOAuth change
   edits the same auth form files, so whichever lands second re-checks the
   live files (both drift checks cover them).
+
+### Docs generation (048–050)
+
+```
+048 docs foundation ─► 049 VPATs & ACRs guide
+                    └► 050 accessibility laws guide
+```
+
+- **048 first, strictly** — it creates `DocsArticle`, the `/docs` index,
+  the nav entries, and `public/llms.txt` that both guides assume. 049 and
+  050 are independent of each other; either order.
+- **Nav overlap**: 048 touches `SiteHeader`/`SiteFooter`, which 041
+  (pricing) and 043 (monitors) also edit — disjoint one-line hunks, but
+  whichever lands later reads the live files.
+- **046 interplay is soft**: 049's "How Mend helps" section links `/vpat`
+  only if 046 has landed, and shrinks to one sentence otherwise; 050 §8
+  likewise mentions monitors/VPAT only if 043+/046 landed. Neither guide
+  blocks on any feature plan.
+- **Curated, not generated**: the `/docs` index and `llms.txt` are
+  hand-maintained — every plan that adds/renames a docs page updates
+  both (each guide plan says so).
+- **Content plans verify facts at execution time** — 049 against
+  ITI/Section508.gov, 050 against primary legal sources — and the plans
+  explicitly subordinate their own outlines to those sources. Do not
+  transcribe the outlines as copy.
 
 ### Animation generation (016–022)
 
