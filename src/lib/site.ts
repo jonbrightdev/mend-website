@@ -14,6 +14,10 @@ export const site = {
   chromeStoreUrl: import.meta.env.VITE_CHROME_STORE_URL ?? "#",
   // Empty means "no public email yet"; contact links fall back to GitHub issues.
   contactEmail: import.meta.env.VITE_CONTACT_EMAIL ?? "",
+  // The date the current policy text took effect. It belongs with the policy
+  // it describes, so the default is the real date and bumps when privacy.tsx
+  // changes materially — last updated when Stripe/OAuth/hosting processors
+  // were disclosed. The env var stays as an ops override.
   privacyEffectiveDate:
-    import.meta.env.VITE_PRIVACY_EFFECTIVE_DATE ?? "[DATE]",
+    import.meta.env.VITE_PRIVACY_EFFECTIVE_DATE || "20 July 2026",
 } as const;
