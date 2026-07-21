@@ -6,6 +6,10 @@ import { SECURITY_HEADERS } from "./src/lib/security-headers";
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
+  // fsevents is a native macOS binary (optional dep of file watchers); the
+  // rolldown dep optimizer can't parse .node files and crashes the dev server
+  // if it tries.
+  optimizeDeps: { exclude: ["fsevents"] },
   plugins: [
     // PGlite must stay external: bundling it strips the WASM/data assets it
     // loads relative to its own module path.
