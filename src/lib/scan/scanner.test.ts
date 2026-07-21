@@ -105,6 +105,40 @@ describe("checkRedirectHop", () => {
   });
 });
 
+describe("blockedRedirect", () => {
+  it("ignores a response that is not a redirect", async () => {
+    const { blockedRedirect } = await import("@/lib/scan/scanner");
+    expect(blockedRedirect(200, undefined, "https://example.com/")).toBeNull();
+    // A 3xx without a Location goes nowhere, so there is no hop to check.
+    expect(blockedRedirect(302, undefined, "https://example.com/")).toBeNull();
+  });
+
+  it("allows an ordinary http -> https hop on the same site", async () => {
+    const { blockedRedirect } = await import("@/lib/scan/scanner");
+    expect(blockedRedirect(301, "https://example.com/", "http://example.com/")).toBeNull();
+  });
+
+  it("blocks a redirect to cloud metadata", async () => {
+    const { blockedRedirect } = await import("@/lib/scan/scanner");
+    const hop = blockedRedirect(302, "http://169.254.169.254/latest/meta-data/", "https://example.com/");
+    expect(hop?.url).toBe("http://169.254.169.254/latest/meta-data/");
+    expect(hop?.reason).toEqual(expect.any(String));
+  });
+
+  it("resolves a relative Location against the responding URL, not the original", async () => {
+    const { blockedRedirect } = await import("@/lib/scan/scanner");
+    // Second hop of a chain: the first hop already moved us to the private
+    // host, and a bare "../creds" there must still be caught.
+    const hop = blockedRedirect(302, "../creds", "http://169.254.169.254/latest/meta-data/");
+    expect(hop?.url).toBe("http://169.254.169.254/latest/creds");
+  });
+
+  it("ignores a Location Chromium could not follow either", async () => {
+    const { blockedRedirect } = await import("@/lib/scan/scanner");
+    expect(blockedRedirect(302, "http://[not a url", "https://example.com/")).toBeNull();
+  });
+});
+
 describe("withCrashRetry", () => {
   const crash = () => new Error("page.goto: Page crashed");
 

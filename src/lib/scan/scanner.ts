@@ -90,6 +90,37 @@ export function checkRedirectHop(url: string): string | null {
 }
 
 /**
+ * Decides whether a redirect response points somewhere we refuse to follow.
+ * Returns the offending hop, or null when there is nothing to block.
+ *
+ * Takes primitives rather than a Playwright Response so the whole decision —
+ * the 3xx filter and the Location resolution, not just the address check — is
+ * unit testable without launching a browser.
+ */
+export function blockedRedirect(
+  status: number,
+  location: string | undefined,
+  responseUrl: string,
+): { url: string; reason: string } | null {
+  if (status < 300 || status > 399) return null;
+  if (!location) return null;
+
+  let next: string;
+  try {
+    // Location may be relative, and on the second hop of a chain it is
+    // relative to *that* hop — so resolve against the responding URL.
+    next = new URL(location, responseUrl).toString();
+  } catch {
+    // An unparseable Location is one Chromium cannot follow either, so there
+    // is no request here to guard against.
+    return null;
+  }
+
+  const reason = checkRedirectHop(next);
+  return reason ? { url: next, reason } : null;
+}
+
+/**
  * Matches a Chromium *renderer* crash, as opposed to an ordinary scan failure
  * (navigation timeout, DNS, TLS). The renderer dying is a different class of
  * problem: nothing about the request was wrong, the browser process itself
@@ -171,24 +202,16 @@ async function runScan(url: string): Promise<IngestPayload> {
     const blockedHops: { url: string; reason: string }[] = [];
     page.on("response", (response) => {
       if (blockedHops.length > 0) return;
-      const status = response.status();
-      if (status < 300 || status > 399) return;
-      const location = response.headers().location;
-      if (!location) return;
-
-      let next: string;
-      try {
-        // Location may be relative, and on the second hop of a chain it is
-        // relative to *that* hop — so resolve against the responding URL.
-        next = new URL(location, response.url()).toString();
-      } catch {
-        // An unparseable Location is one Chromium cannot follow either, so
-        // there is no request here to guard against.
-        return;
-      }
-
-      const reason = checkRedirectHop(next);
-      if (reason) blockedHops.push({ url: next, reason });
+      // Navigations only, in any frame. A *subresource* that redirects to a
+      // private address leaks nothing through our output — axe reports on the
+      // document, not on what an image fetched — and a hostile page can
+      // already request an internal address directly from its own JavaScript,
+      // which no redirect check can see. Failing a scan because some tracker
+      // 302s would be a false positive bought for nothing. A navigation is the
+      // real case: its DOM becomes the audit, HTML snippets and all.
+      if (!response.request().isNavigationRequest()) return;
+      const hop = blockedRedirect(response.status(), response.headers().location, response.url());
+      if (hop) blockedHops.push(hop);
     });
 
     await page.goto(url, { waitUntil: "load", timeout: NAV_TIMEOUT_MS });
