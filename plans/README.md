@@ -45,6 +45,49 @@ billing design generation:
   guides carry the 046 honesty stance: no copy may imply automated
   testing alone yields compliance or a conformance claim.
 
+- **051–057** — an `improve` (general) audit at commit `9930443`
+  (2026-07-21), the third full-repo pass. Baseline at audit time: typecheck
+  and lint clean, 528 tests green. Four parallel category agents, findings
+  vetted against the code before planning. The headline is **051** (the
+  monitor scanner's SSRF guard runs once and Chromium then follows redirects
+  past it — a *different* gap from the DNS-rebinding one `url-guard.ts`
+  documents as accepted); the rest is a perf bound that account age was
+  slowly breaking (053), two dedup/tooling items (052, 054, 055), and two
+  plans on the **manual-audit surface** (056, 057) that carry a prerequisite:
+  that feature was not on `main` when these were written. See the note below.
+
+### The manual-audit prerequisite (056, 057)
+
+During this session, an `git add -A` in commit `241b933` swept the
+then-uncommitted `/api/manual/**` feature (5 tables, migration `0005`, 7
+routes, `manual-audit.ts` — 2,376 lines) into a commit whose message was
+about closing plan 044's deploy gate, and pushed it. That was an error, and
+the history was split back out: `main` was rebuilt as `e91c4a2 → 33c69c7 →
+a744473 → 9930443`, and the feature returned to the working tree
+uncommitted. The old tip is preserved at branch `backup/pre-split`.
+
+Three independent signals said the feature was mid-build, not finished: it
+had no tests at all, `screenshots.$key.ts` documents its own missing
+authorization as provisional ("for now"), and **nothing anywhere sets
+`user.isAuditor`** — it is only ever read, so the routes are unreachable
+without a manual database edit.
+
+**Two of those have since moved**, in the working tree, after the audit ran:
+a route-level suite now exists at `src/routes/api/manual/manual.test.ts`
+(auth rejection, revoked keys, cross-auditor audit isolation, check/finding
+interaction, screenshot storage, dismissal validation), and `vite.config.ts`
+gained `optimizeDeps: { exclude: ["fsevents"] }` — which looks like the fix
+for the `pnpm dev` breakage that five previous plans worked around. Plans 056
+and 057 were revised to build on that suite rather than duplicate it. The
+`isAuditor` grant path is still absent, and the screenshot ownership gap is
+still open and still untested — that is precisely what 056 closes.
+
+**One consequence to remember**: Railway ran `db:migrate` on the bad push, so
+production *has* migration `0005` applied while `main` no longer contains it.
+When the feature is re-landed, **commit the existing `drizzle/0005_*` files
+with it** rather than regenerating — a fresh migration would try to
+`CREATE TABLE` tables that already exist in production.
+
 Each plan is self-contained — an executor needs no other context. Read the plan fully before starting, honor its STOP conditions, and update your status row when done.
 
 ## Execution order & status
@@ -81,6 +124,18 @@ migration `0002_nostalgic_bruce_banner.sql`), 014 (account-page danger zone),
 | [048](048-docs-foundation.md) | Docs section foundation (`/docs` + llms.txt) | P2 | M | — | DONE (`DocsArticle.tsx`, `/docs` index, Docs in header nav between Home and Pricing + footer, `public/llms.txt`. **No new CSS** — `page-head`/`section--tight`/`feature-grid`/`feature`/`chip`/`muted` covered it. Neither guide has landed, so both index entries render unlinked with a "Coming soon" chip, and `llms.txt` lists only the `/docs` index under `## Docs`, per the plan's landed-check. Four notes: (1) **the plan's STOP on the production origin fired** — no origin exists anywhere in the repo (`BETTER_AUTH_URL` is localhost, `railway.json` has no domain); the operator supplied `https://mend-a11y.com`. Related: `src/lib/scan/scanner.ts:31` hardcodes `https://mend.dev/support` in the monitor user-agent, which now looks like a **wrong domain** — out of scope here, worth a one-line fix (**done 2026-07-21**: now `https://mend-a11y.com/support`); (2) done criterion "DocsArticle is exercised by the index or a landed article" **cannot be met as written** — the index has its own head/card layout and neither article exists, so `DocsArticle` would ship unexercised; covered instead by `DocsArticle.test.tsx` (3 tests: h1 level, eyebrow/lede/last-reviewed, back link), using the same jsdom + Link-mock idiom as `DashboardClient.test.tsx`; (3) monitoring is deliberately **absent** from the llms.txt blockquote even though 043–045 landed — 044's production Chromium gate is still open, so an LLM-facing claim about it isn't verifiable yet; the blockquote sticks to claims checked against live copy (free/MIT, Chrome, WCAG 2.0/2.1/2.2, on-device with no network requests, optional dashboard for history + VPAT reports), and axe-core was verified as a real dependency of *both* repos; (4) verified against the **built** server, not `pnpm dev` (still dies on the fsevents/rolldown native-binding load on this machine, same as 046/047): `/llms.txt` 200 `text/plain`, all five URLs in it resolve 200, `aria-current="page"` lands on Docs on `/docs` and is absent on `/support`. Nav is plain anchors, so keyboard behaviour is structural rather than separately observed) |
 | [049](049-docs-vpat-acr.md) | Docs guide: VPATs and ACRs | P2 | M | 048 | DONE (`/docs/vpats-and-acrs` via `DocsArticle`; 8 h2 sections + 5-entry native-`<details>` FAQ, index entry linked, llms.txt line replaced with a real description. No new CSS or components — `prose`/`callout`/`faq`/`section--tight` covered it. **Step 1 facts verified live against ITI and Section508.gov, and the plan was wrong twice**: (1) the current template is **VPAT 2.5Rev (April 2025)**, not "2.5" — the guide says 2.5Rev; (2) ITI's own wording is "**registered service marks**", not "registered trademark", so the closing note says service mark. Everything else in the plan's outline held: four editions (508 / EU EN 301 549 / WCAG — currently WCAG 2.2 / INT), and the five conformance terms with *Not Evaluated* permitted only in the Level AAA table. Two facts the plan didn't have and the guide uses: remarks are **mandatory** for Partially Supports / Does Not Support and optional-but-encouraged for Supports (this is what makes the "wall of Supports with empty remarks" smell in section 4 a documented signal rather than an opinion), and Section508.gov states the VPAT template itself is not required while an ACR effectively is, to sell federally — which is the honest answer to the "legally required?" FAQ. Three notes: (1) **fixed an a11y bug 048 could not have surfaced** — `/docs` only just gained children, and TanStack `Link` fuzzy-matches parents, so the "← All guides" back link and the footer Docs link were both stamped `aria-current="page"` while on an article, i.e. a link pointing elsewhere claiming to be the current page; both now pass `activeOptions={{ exact: true }}`. The header keeps its explicit `current="docs"` section marking, matching how audit detail pages keep Dashboard lit. Verified: 1 `aria-current` on the article, 2 on `/docs` itself; (2) **`src/lib/vpat-render.ts:24` now disagrees with this guide** — it says "registered trademark" and "VPAT 2.5 WCAG edition"; per ITI both should read "registered service mark" and "2.5Rev". Out of scope here (046's file), worth a one-line follow-up so the site doesn't contradict itself (**done 2026-07-21**: `TRADEMARK_FOOTNOTE` and `REPORT_SUBTITLE` both corrected — the subtitle said "VPAT® 2.5 format" too, which the 049 note missed. Tests assert against the exported constants, not literals, so no test churn); (3) the cost FAQ deliberately quotes **no figures** — they age badly and the honest point is that evaluation, not paperwork, is the cost. No 050 cross-link yet (not landed); add both directions when it does. Verified against the built server again, not `pnpm dev`) |
 | [050](050-docs-accessibility-laws.md) | Docs guide: accessibility laws and legal compliance | P2 | L | 048 | DONE (`/docs/accessibility-laws` via `DocsArticle`; 9 h2 sections with h3s only under United States, 6-entry `details` FAQ, index entry linked, llms.txt entry added, 049 cross-linked both ways. No new CSS or components. **Step 1 fact-checking found the plan's central US fact is now wrong**: a DOJ **interim final rule effective 20 April 2026** (FR 2026-07663) extended *both* ADA Title II web compliance dates by a year — 50k+ population moved 24 Apr 2026 → **26 Apr 2027**, and <50k plus special districts moved 26 Apr 2027 → **26 Apr 2028**. So the plan's instruction to say "one deadline has likely already passed" is false: **no ADA Title II web deadline has passed.** The guide states the current dates and adds a callout warning that anything written before April 2026 gives the old ones. Judged *not* a STOP: the STOP covers a change that reshapes §3's structure (its example is a codified Title III rule), and a deadline shift is exactly the kind of fact step 1 exists to catch. Three other corrections: (1) **EN 301 549 is still harmonised at v3.2.1, which references WCAG 2.1** — the WCAG 2.2 alignment (draft V4.1.0, Nov 2025) is not yet cited in the OJ, so the guide must not imply WCAG 2.2 applies in the EU; (2) Section 508's precise value is WCAG 2.0 **Level A and Level AA** (E205.4), not "2.0 AA"; (3) UK PSBAR at WCAG 2.2 AA and AODA at WCAG 2.0 AA both confirmed as planned. Four notes: (1) **three facts were omitted rather than hedged, per the plan's rule** — EAA transitional periods (the 2030/20-year provisions), Canada's "Digital Technologies Phase 1" effective dates, and the WCAG version in AHRC's *updated* Australian guidance; EUR-Lex full text answers a bot challenge (HTTP 202, empty body) from this environment and canada.ca/humanrights.gov.au returned 403, so the sections were written without them. The EAA's load-bearing 28 June 2025 application date **was** confirmed, from EC-hosted official pages (AccessibleEU + the EUR-Lex LEGISSUM summary) rather than the raw directive; (2) **monitoring is deliberately not mentioned in §8**, matching 048's llms.txt reasoning — 044's production Chromium gate is still open, so §8 claims only on-device auditing, stored history, and the VPAT report, all of which hold regardless; (3) **typecheck caught a latent bug in 048's index**: with `as const` and every entry finally carrying a real `href`, the unlinked fallback branch narrowed to `never` and stopped compiling — the "coming soon" pattern only type-checked while a guide was missing. `guides` is now an explicit `Guide[]` whose `href` is a union of landed routes plus `null`, so the pattern survives for future guides; (4) the FAQ gained a 6th entry the plan didn't list — "We got a demand letter. What now?" — answered as "talk to a lawyer first", which is the one question where general information is actively unsafe. Verified in **real headless Chromium** against the built server (`pnpm dev` still dies on the fsevents/rolldown native-binding load, same as 046–049) — and note the raw HTML carries no body markup for *any* page in this build, so grep-based checks are useless here and a browser is required: heading order clean with no skips, disclaimer callout bottom at 651px on an 800px-tall viewport (above the fold), 6 `details`, exactly one `aria-current` (the nav's Docs link — 049's `exact` fix holding), and every fact rendering as verified. Full gate green: 511 tests) |
+
+### Generation 051–057 (planned at `9930443`, 2026-07-21)
+
+| Plan | Title | Priority | Effort | Depends on | Status |
+|------|-------|----------|--------|------------|--------|
+| [051](051-scan-redirect-guard.md) | Re-validate every redirect hop against the SSRF guard | P1 | M | — | TODO |
+| [052](052-js-yaml-override.md) | Clear the js-yaml HIGH advisory with a pnpm override | P2 | S | — | TODO |
+| [053](053-bound-audit-history-loads.md) | Bound the unbounded audit-history loads | P2 | M | — | TODO |
+| [054](054-structured-logging.md) | Replace ad-hoc console calls with one structured logger | P3 | M | — | TODO |
+| [055](055-shared-billing-and-session-helpers.md) | Extract the duplicated Checkout call and session guard | P3 | S | — | TODO |
+| [056](056-manual-audit-auth-and-tests.md) | Close the screenshot authorization gap; test the manual-audit auth core | P1 | M | manual-audit feature landing | TODO |
+| [057](057-manual-audit-queries-layer.md) | Move the manual-audit routes onto the queries layer | P3 | M | 056 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -268,7 +323,69 @@ or Checkout vs Elements in plan execution.
   `.panel-mock--float` (the existing drift). Do not consolidate them; the later
   `transform` would silently win and one animation would vanish.
 
+### Generation 051–057
+
+```
+051 SSRF redirect guard      (independent — do first)
+052 js-yaml override         (independent, quickest win)
+053 bound history loads      (independent)
+054 structured logging       (independent)
+055 shared helpers           (independent)
+056 manual-audit auth+tests ─► 057 manual-audit queries layer
+        ↑ both blocked on the feature being committed to main
+```
+
+- **051 first, and before flipping `MONITOR_SCHEDULER_ENABLED`.** The flag is
+  otherwise cleared to turn on (044's gate closed), but doing so makes the
+  redirect gap a daily unattended job rather than a manual one.
+- **052–055 are independent of everything and of each other.** 052 is the
+  cheapest; 053 is the one that matters most as monitor data accumulates.
+- **056 before 057, strictly.** 056 builds the test suite that makes 057's
+  refactor verifiable. Doing 057 first means restructuring untested code that
+  carries an authorization boundary.
+- **File overlap — exactly one pair**: 051 and 054 both edit
+  `src/lib/scan/scanner.ts` (051 adds the redirect listener inside `runScan`;
+  054 converts the one `console.warn` in `withCrashRetry`). Disjoint hunks;
+  whichever lands second re-reads the live file. Every other pair in this
+  generation touches disjoint files — 054 is the widest-reaching, and none of
+  052, 053, 055 share a file with it.
+
 ## Findings considered and rejected
+
+So nobody re-audits these (general audit at `9930443`, 2026-07-21):
+
+- **Screenshot path traversal** in `readScreenshot`: not a vulnerability. The
+  key pattern `^[0-9a-f-]+\.png$` is anchored, so no `/` or `..` can pass.
+  Flagged by an audit agent, checked, cleared.
+- **`src/lib/dashboard-data.ts` as a god-module** (523 lines): it is a flat,
+  hand-written rules catalogue plus small pure helpers, not tangled logic.
+  Not worth a refactor.
+- **`DashboardClient.tsx` (588) / `AccountClient.tsx` (491) file splits**:
+  `AccountClient` is already decomposed in-file into three components, and
+  `DashboardClient` is mostly JSX with clean `useMemo` derivations. Legitimate
+  tidy-up, low leverage, not recommended standalone.
+- **esbuild advisories** (moderate + low): re-verified, not assumed — both
+  reach only through `drizzle-kit`, a devDependency never bundled into the
+  production server. No overrides worth adding.
+- **TypeScript 5.9 → 7.0**: 7.0 is the ground-up native compiler rewrite and
+  had just shipped at audit time. High risk, no urgent benefit, ecosystem
+  unvalidated. Revisit after a few patch releases.
+- **`.replace(/^https?:\/\//, "")` repeated 4× in `DashboardClient.tsx`**:
+  real but trivial and single-file. Fix opportunistically, not deliberately.
+- **`db:push` still in `package.json`**: flagged as a foot-gun given the drift
+  incident `CLAUDE.md` records. Left alone — MED confidence only, because a
+  local prototyping use case cannot be ruled out from the repo. Worth asking
+  the maintainer, not worth a plan.
+
+Parked, not rejected, from this generation: **`export-data.ts`'s unbounded
+violation load** (needs a product answer first — is the JSON export "current
+state" or "everything ever"? see 053's out-of-scope note); **request-id
+correlation** in logging (needs every handler signature touched — see 054);
+**nonce-based `script-src` CSP** (the framework exposes
+`router.options.ssr.nonce`; see the warning block in
+`src/lib/security-headers.ts` before attempting it); and the **doxy.me
+renderer crash** (mitigated by a retry in `9930443`, root cause likely
+Railway container memory, unmeasured).
 
 So nobody re-audits these (general audit at `0be29dc`, 2026-07-18):
 
