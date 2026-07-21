@@ -26,6 +26,10 @@ export const user = pgTable("user", {
   // Stripe customer id — kept off the session cookie payload (not an
   // additionalField); billing PII stays out of src/lib/session.ts.
   stripeCustomerId: text("stripeCustomerId").unique(),
+  // Internal auditors (manual-audit product) — set by hand in the DB, never
+  // through the app. App-managed column like stripeCustomerId; Better Auth
+  // doesn't know about it.
+  isAuditor: boolean("isAuditor").notNull().default(false),
 });
 
 export const session = pgTable("session", {
@@ -194,6 +198,142 @@ export const monitor = pgTable(
     // The scheduler's due-scan is a range query on nextRunAt.
     index("monitor_next_run_idx").on(t.nextRunAt),
   ],
+);
+
+/* ============================================================
+   Manual audit (WCAG-EM) tables — the paid auditor product.
+
+   Distinct from `audit` above, which is one *automated* scan run
+   from the consumer extension. Here an internal auditor (a user
+   with isAuditor) assembles a page sample, works the criterion
+   checklist page by page, and logs findings via the mend-manual-
+   helper extension. `userId` is the customer whose dashboard the
+   published audit appears on; `auditorUserId` is who performs it.
+   ============================================================ */
+
+export type ManualAuditStatus = "in_progress" | "complete" | "published";
+export type CheckStatus = "pass" | "fail" | "not_applicable" | "not_tested";
+export type FindingProvenance = "manual" | "automated_confirmed";
+
+export const manualAudit = pgTable(
+  "manual_audit",
+  {
+    id: text("id").primaryKey(),
+    userId: text("userId")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // No cascade: deleting an auditor account must not destroy customer audits.
+    auditorUserId: text("auditorUserId")
+      .notNull()
+      .references(() => user.id),
+    name: text("name").notNull(),
+    scopeUrl: text("scopeUrl").notNull(),
+    wcagVersion: text("wcagVersion").notNull().default("2.2"),
+    conformanceTarget: text("conformanceTarget").$type<"A" | "AA">().notNull().default("AA"),
+    status: text("status").$type<ManualAuditStatus>().notNull().default("in_progress"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+    publishedAt: timestamp("publishedAt"),
+  },
+  (t) => [
+    index("manual_audit_user_idx").on(t.userId),
+    index("manual_audit_auditor_idx").on(t.auditorUserId),
+  ],
+);
+
+// One sampled item (WCAG-EM step 3). A distinct *state* of a URL ("checkout
+// with validation errors shown") is its own row, so stateDescription is part
+// of the sample identity, not a note.
+export const manualAuditPage = pgTable(
+  "manual_audit_page",
+  {
+    id: text("id").primaryKey(),
+    manualAuditId: text("manualAuditId")
+      .notNull()
+      .references(() => manualAudit.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    title: text("title").notNull(),
+    stateDescription: text("stateDescription"),
+    sortOrder: integer("sortOrder").notNull().default(0),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (t) => [index("manual_audit_page_audit_idx").on(t.manualAuditId)],
+);
+
+// The coverage matrix, stored sparse: a row exists only once the auditor has
+// set a status for (page, criterion). Absence means not_tested, so audit
+// completeness = rows with status != not_tested / (pages × applicable criteria).
+export const manualAuditCheck = pgTable(
+  "manual_audit_check",
+  {
+    id: text("id").primaryKey(),
+    manualAuditId: text("manualAuditId")
+      .notNull()
+      .references(() => manualAudit.id, { onDelete: "cascade" }),
+    pageId: text("pageId")
+      .notNull()
+      .references(() => manualAuditPage.id, { onDelete: "cascade" }),
+    sc: text("sc").notNull(), // dotted criterion number, e.g. "1.4.3"
+    status: text("status").$type<CheckStatus>().notNull(),
+    notes: text("notes"),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("manual_audit_check_page_sc").on(t.pageId, t.sc),
+    index("manual_audit_check_audit_idx").on(t.manualAuditId),
+  ],
+);
+
+// A logged violation, attached to page + criterion. provenance records whether
+// the auditor found it by hand or confirmed an axe candidate — nothing
+// automated reaches the customer unreviewed. screenshotKey names a file in the
+// screenshot store (src/lib/manual-audit.ts), not a URL.
+export const manualFinding = pgTable(
+  "manual_finding",
+  {
+    id: text("id").primaryKey(),
+    manualAuditId: text("manualAuditId")
+      .notNull()
+      .references(() => manualAudit.id, { onDelete: "cascade" }),
+    pageId: text("pageId")
+      .notNull()
+      .references(() => manualAuditPage.id, { onDelete: "cascade" }),
+    sc: text("sc").notNull(),
+    severity: text("severity").$type<Impact>().notNull(),
+    summary: text("summary").notNull(),
+    description: text("description"),
+    remediation: text("remediation"),
+    selector: text("selector"),
+    html: text("html"),
+    screenshotKey: text("screenshotKey"),
+    provenance: text("provenance").$type<FindingProvenance>().notNull(),
+    axeRuleId: text("axeRuleId"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (t) => [
+    index("manual_finding_audit_idx").on(t.manualAuditId),
+    index("manual_finding_page_idx").on(t.pageId),
+  ],
+);
+
+// A rejected axe candidate, with the auditor's reason — kept so the audit is
+// defensible ("axe flagged this; here's why it isn't a violation").
+export const manualDismissal = pgTable(
+  "manual_dismissal",
+  {
+    id: text("id").primaryKey(),
+    manualAuditId: text("manualAuditId")
+      .notNull()
+      .references(() => manualAudit.id, { onDelete: "cascade" }),
+    pageId: text("pageId")
+      .notNull()
+      .references(() => manualAuditPage.id, { onDelete: "cascade" }),
+    axeRuleId: text("axeRuleId").notNull(),
+    selector: text("selector"),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+  },
+  (t) => [index("manual_dismissal_page_idx").on(t.pageId)],
 );
 
 // Processed Stripe webhook events, keyed by Stripe's event id for idempotency.
