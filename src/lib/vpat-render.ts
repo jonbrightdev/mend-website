@@ -12,7 +12,7 @@
 import type { VpatFinding, VpatReportData, VpatRow } from "@/lib/vpat-data";
 
 export const REPORT_SUBTITLE =
-  "Automated assessment (VPAT® 2.5 format) · WCAG 2.2 edition";
+  "Automated assessment (VPAT® 2.5Rev format) · WCAG 2.2 edition";
 
 export const METHODOLOGY_COPY = [
   "Results in this report come from automated accessibility scans performed by Mend using axe-core, an open-source rules engine. Each page listed above was evaluated on the date shown.",
@@ -21,7 +21,7 @@ export const METHODOLOGY_COPY = [
 ];
 
 export const TRADEMARK_FOOTNOTE =
-  "VPAT® is a registered trademark of the Information Technology Industry Council (ITI). This report follows the structure of the VPAT 2.5 WCAG edition. It is not produced, endorsed, or certified by ITI.";
+  "VPAT® is a registered service mark of the Information Technology Industry Council (ITI). This report follows the structure of the VPAT 2.5Rev WCAG edition. It is not produced, endorsed, or certified by ITI.";
 
 const CONFORMANCE_NOTE: Record<VpatRow["conformance"], string> = {
   Supports: "No issues detected by automated checks.",
