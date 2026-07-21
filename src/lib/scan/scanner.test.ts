@@ -76,6 +76,35 @@ describe("isRendererCrash", () => {
   });
 });
 
+describe("checkRedirectHop", () => {
+  // The guard runs once, on the URL the user submitted; Chromium then follows
+  // redirects on its own. These are the addresses a redirect must not reach.
+  it("allows an ordinary public address", async () => {
+    const { checkRedirectHop } = await import("@/lib/scan/scanner");
+    expect(checkRedirectHop("https://example.com/landing")).toBeNull();
+  });
+
+  it("blocks cloud metadata", async () => {
+    const { checkRedirectHop } = await import("@/lib/scan/scanner");
+    expect(checkRedirectHop("http://169.254.169.254/latest/meta-data/")).toEqual(expect.any(String));
+  });
+
+  it("blocks loopback", async () => {
+    const { checkRedirectHop } = await import("@/lib/scan/scanner");
+    expect(checkRedirectHop("http://127.0.0.1:3000/")).toEqual(expect.any(String));
+  });
+
+  it("blocks RFC1918 private space", async () => {
+    const { checkRedirectHop } = await import("@/lib/scan/scanner");
+    expect(checkRedirectHop("http://10.0.0.5/")).toEqual(expect.any(String));
+  });
+
+  it("blocks a non-http scheme", async () => {
+    const { checkRedirectHop } = await import("@/lib/scan/scanner");
+    expect(checkRedirectHop("file:///etc/hosts")).toEqual(expect.any(String));
+  });
+});
+
 describe("withCrashRetry", () => {
   const crash = () => new Error("page.goto: Page crashed");
 

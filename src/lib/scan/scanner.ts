@@ -74,6 +74,22 @@ export async function scanPage(url: string): Promise<IngestPayload> {
 }
 
 /**
+ * Validates one URL from a redirect chain. Returns null when the hop is
+ * allowed, or a user-readable reason when it is not.
+ *
+ * Separate from the Playwright wiring so the decision can be unit tested
+ * without launching a browser — same reason withCrashRetry is split out.
+ */
+export function checkRedirectHop(url: string): string | null {
+  try {
+    assertScannableUrl(url);
+    return null;
+  } catch (e) {
+    return e instanceof Error ? e.message : "That address cannot be scanned.";
+  }
+}
+
+/**
  * Matches a Chromium *renderer* crash, as opposed to an ordinary scan failure
  * (navigation timeout, DNS, TLS). The renderer dying is a different class of
  * problem: nothing about the request was wrong, the browser process itself
@@ -144,7 +160,47 @@ async function runScan(url: string): Promise<IngestPayload> {
     });
     const page = await context.newPage();
 
+    // page.goto follows redirects inside Chromium, so the guard that ran on the
+    // submitted URL never sees the addresses we actually end up fetching.
+    // Record any hop that fails the same check and fail the scan afterwards — a
+    // public URL that 302s to 169.254.169.254 must not be scannable.
+    //
+    // Held in an array rather than a `let` because TypeScript keeps the
+    // initializer's narrowing for a variable only assigned inside a closure,
+    // which would make the check below look unreachable.
+    const blockedHops: { url: string; reason: string }[] = [];
+    page.on("response", (response) => {
+      if (blockedHops.length > 0) return;
+      const status = response.status();
+      if (status < 300 || status > 399) return;
+      const location = response.headers().location;
+      if (!location) return;
+
+      let next: string;
+      try {
+        // Location may be relative, and on the second hop of a chain it is
+        // relative to *that* hop — so resolve against the responding URL.
+        next = new URL(location, response.url()).toString();
+      } catch {
+        // An unparseable Location is one Chromium cannot follow either, so
+        // there is no request here to guard against.
+        return;
+      }
+
+      const reason = checkRedirectHop(next);
+      if (reason) blockedHops.push({ url: next, reason });
+    });
+
     await page.goto(url, { waitUntil: "load", timeout: NAV_TIMEOUT_MS });
+
+    // Checked here rather than thrown from the handler: throwing inside a
+    // Playwright event listener does not reject goto — it becomes an unhandled
+    // rejection and the scan carries on regardless.
+    const blocked = blockedHops[0];
+    if (blocked) {
+      throw new Error(`This page redirected to an address Mend will not load. ${blocked.reason}`);
+    }
+
     await page.waitForTimeout(SETTLE_MS);
 
     const pageTitle = await page.title();
