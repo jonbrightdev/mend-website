@@ -182,7 +182,9 @@ function DetailsPage() {
               </h2>
               <p>{rule.fix}</p>
               {rule.before && rule.after && (
-                <div
+                // figure, not div: the implicit figure role supports a name,
+                // so this label is announced. On a plain div it was dropped.
+                <figure
                   className="codeflip codeflip--lg"
                   aria-label="Before and after code example"
                 >
@@ -194,7 +196,7 @@ function DetailsPage() {
                     <span className="codeflip__tag">After</span>
                     <code>{rule.after}</code>
                   </div>
-                </div>
+                </figure>
               )}
             </div>
 

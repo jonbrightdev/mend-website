@@ -70,7 +70,47 @@ export function chromiumPath(): string {
  */
 export async function scanPage(url: string): Promise<IngestPayload> {
   assertScannableUrl(url);
-  return runScan(url);
+  return withCrashRetry(url, runScan);
+}
+
+/**
+ * Matches a Chromium *renderer* crash, as opposed to an ordinary scan failure
+ * (navigation timeout, DNS, TLS). The renderer dying is a different class of
+ * problem: nothing about the request was wrong, the browser process itself
+ * went away mid-page.
+ */
+export function isRendererCrash(e: unknown): boolean {
+  const message = e instanceof Error && e.message ? e.message : String(e);
+  return /page crashed|target crashed|browser has disconnected/i.test(message);
+}
+
+/**
+ * Runs `attempt`, and on a renderer crash runs it exactly once more.
+ *
+ * A crash is usually memory pressure — the container ran out while laying out
+ * a heavy page — and it is frequently transient, so a second try on a fresh
+ * browser often succeeds and costs one page load. Crashing twice in a row is a
+ * real limit rather than a blip, and earns an error an operator can act on
+ * instead of Playwright's raw "Page crashed", which reads like a bug in Mend.
+ *
+ * Separated from the browser work so it can be tested without launching one.
+ */
+export async function withCrashRetry<T>(url: string, attempt: (url: string) => Promise<T>): Promise<T> {
+  try {
+    return await attempt(url);
+  } catch (first) {
+    if (!isRendererCrash(first)) throw first;
+    console.warn(`scan: renderer crashed on ${url}, retrying once`);
+
+    try {
+      return await attempt(url);
+    } catch (second) {
+      if (!isRendererCrash(second)) throw second;
+      throw new Error(
+        "The browser crashed twice while rendering this page, which usually means the page exceeded the scanner's memory limit. Very script-heavy pages can do this.",
+      );
+    }
+  }
 }
 
 /**

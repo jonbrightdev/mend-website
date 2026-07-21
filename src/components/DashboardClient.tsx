@@ -36,7 +36,11 @@ function MiniImpacts({ audit }: { audit: AuditRecord }) {
   const c = countsByImpact([audit]);
   const label = `${c.critical} critical, ${c.serious} serious, ${c.moderate} moderate, ${c.minor} minor`;
   return (
-    <span className="mini-impacts" aria-label={label}>
+    // role="img" is what makes the aria-label count: a bare span has the
+    // generic role, which does not support naming, so screen readers dropped
+    // this label silently. As an image, the cluster is announced as one
+    // summary instead of four unexplained numbers.
+    <span className="mini-impacts" role="img" aria-label={label}>
       {IMPACT_ORDER.map((k) => (
         <span key={k} className={c[k] > 0 ? `s-${k}` : "zero"}>
           {c[k]}
@@ -270,11 +274,15 @@ export function DashboardClient({ audits, runDates, hasActiveKey }: Props) {
 
         <span className="spacer" />
 
-        <div className="toolbar__group" role="group" aria-label="Dashboard layout">
+        {/* The wrapper is layout only. It used to carry its own role="group"
+            plus a label, which nested two groups one inside the other and made
+            a screen reader announce "Dashboard layout" and then "Layout" for a
+            single pair of buttons. The inner group is the meaningful one. */}
+        <div className="toolbar__group">
           <span className="toolbar__label" id="layoutLbl">
             Layout
           </span>
-          <div className="segmented" role="group" aria-labelledby="layoutLbl">
+          <fieldset className="segmented" aria-labelledby="layoutLbl">
             <button
               type="button"
               aria-pressed={layout === "overview"}
@@ -297,7 +305,7 @@ export function DashboardClient({ audits, runDates, hasActiveKey }: Props) {
               </svg>
               By page
             </button>
-          </div>
+          </fieldset>
         </div>
       </div>
 
@@ -306,7 +314,7 @@ export function DashboardClient({ audits, runDates, hasActiveKey }: Props) {
         <span className="toolbar__label" id="impLbl">
           Impact
         </span>
-        <div className="impact-filters" role="group" aria-labelledby="impLbl">
+        <fieldset className="impact-filters" aria-labelledby="impLbl">
           {IMPACT_ORDER.map((k) => (
             <button
               key={k}
@@ -320,7 +328,7 @@ export function DashboardClient({ audits, runDates, hasActiveKey }: Props) {
               <span className="num">{impactCounts[k]}</span>
             </button>
           ))}
-        </div>
+        </fieldset>
       </div>
 
       {/* Active scope banner */}

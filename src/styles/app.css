@@ -235,6 +235,16 @@
 .select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
 
 /* Segmented control (layout toggle, impact filter, states) */
+/* .segmented and .impact-filters are <fieldset>s — the semantic form of the
+   role="group" they used to carry. The UA stylesheet gives fieldset a groove
+   border, padding, inline margin and min-inline-size: min-content; the last
+   one is the sharp edge, since it stops these flex rows from shrinking. Reset
+   all four here so the element choice stays invisible to layout. */
+.segmented,
+.impact-filters {
+  margin-inline: 0;
+  min-inline-size: 0;
+}
 .segmented {
   display: inline-flex; padding: 3px;
   background: var(--surface);
@@ -258,7 +268,7 @@
 .segmented .count { font-family: var(--font-mono); font-size: .78rem; opacity: .8; }
 
 /* Impact filter chips (toggle) */
-.impact-filters { display: flex; flex-wrap: wrap; gap: .5rem; }
+.impact-filters { display: flex; flex-wrap: wrap; gap: .5rem; border: 0; padding: 0; }
 .fchip {
   display: inline-flex; align-items: center; gap: .45rem;
   min-height: 38px; padding: 0 .8rem;

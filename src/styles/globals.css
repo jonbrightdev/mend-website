@@ -561,6 +561,10 @@ code, kbd, pre { font-family: var(--font-mono); }
 .feature__extra { margin-top: 1rem; }
 
 .codeflip {
+  /* The rule-detail codeflip is a <figure>, which the UA gives 1em/40px of
+     margin. Zero the inline and bottom edges so it matches the plain <div>
+     codeflips elsewhere; margin-top below is the intended one. */
+  margin-inline: 0; margin-bottom: 0;
   margin-top: 1rem;
   border: 1px solid var(--border);
   border-radius: var(--r);

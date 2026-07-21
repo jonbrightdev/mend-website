@@ -27,7 +27,7 @@ export function DetailsChipPanel({
   }
 
   return (
-    <div className="impact-filters" role="group" aria-label="Issues found on this page">
+    <fieldset className="impact-filters" aria-label="Issues found on this page">
       {chips.map((chip) => (
         <button
           key={chip.id}
@@ -41,6 +41,6 @@ export function DetailsChipPanel({
           <span className="num">{chip.nodeCount}</span>
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
