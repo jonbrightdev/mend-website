@@ -22,6 +22,17 @@
   critically, and how to produce a credible one. States plainly that
   automated testing covers only a subset of each success criterion and
   cannot by itself support a conformance claim.
+- [Accessibility laws and legal compliance](https://mend-a11y.com/docs/accessibility-laws):
+  Which laws reference web accessibility and what each points at — ADA
+  Title II (WCAG 2.1 AA; DOJ compliance dates extended in April 2026 to
+  26 April 2027 and 26 April 2028), ADA Title III (no codified web
+  standard; genuinely unsettled), Section 508 (WCAG 2.0 A and AA), the
+  European Accessibility Act (applies since 28 June 2025) with EN 301 549
+  (harmonised at v3.2.1, based on WCAG 2.1), the EU Web Accessibility
+  Directive, the UK's Equality Act 2010 and PSBAR 2018 (WCAG 2.2 AA), plus
+  brief notes on Canada and Australia. **General educational information,
+  not legal advice**; every date was verified against primary sources on
+  the review date shown on the page, and this material dates quickly.
 
 ## Product
 

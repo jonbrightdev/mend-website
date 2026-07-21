@@ -21,7 +21,18 @@ export const Route = createFileRoute("/docs/")({
 // entry to a <Link> and update public/llms.txt in the same change — plans 049
 // and 050 both say so. Entries whose route does not exist yet render unlinked
 // rather than as a dead link.
-const guides = [
+//
+// `href` is typed as a union of the routes that exist plus null, rather than
+// inferred via `as const`: once every entry has a real href, inference narrows
+// the unlinked branch to `never` and the fallback stops compiling. Add a new
+// guide's path to the union when its route lands.
+type Guide = {
+  title: string;
+  summary: string;
+  href: "/docs/vpats-and-acrs" | "/docs/accessibility-laws" | null;
+};
+
+const guides: Guide[] = [
   {
     title: "VPATs and ACRs",
     summary:
@@ -32,9 +43,9 @@ const guides = [
     title: "Accessibility laws and legal compliance",
     summary:
       "A plain-language tour of the rules that reference web accessibility — the ADA, Section 508, the European Accessibility Act, EN 301 549, and the UK's Equality Act — and how they relate to WCAG. Not legal advice.",
-    href: null,
+    href: "/docs/accessibility-laws",
   },
-] as const;
+];
 
 function DocsIndexPage() {
   const user = Route.useLoaderData();

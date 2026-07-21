@@ -160,6 +160,14 @@ function VpatsAndAcrsPage() {
               EU, which has made conformance documentation an ordinary part of
               doing business there rather than a public-sector speciality.
             </p>
+            <p className="muted">
+              For what these regimes actually require — and which of them applies
+              to you — see{" "}
+              <Link to="/docs/accessibility-laws">
+                accessibility laws and legal compliance
+              </Link>
+              .
+            </p>
 
             <h2>How to read one critically</h2>
             <p>
